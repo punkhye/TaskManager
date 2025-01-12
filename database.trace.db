@@ -1,0 +1,8 @@
+2025-01-12 19:44:41.734592+02:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "CREATE TABLE [*][USER] (\000d\000a    user_id IDENTITY PRIMARY KEY,\000d\000a    username VARCHAR(50) NOT NULL,\000d\000a    password VARCHAR(50) NOT NULL,\000d\000a    role VARCHAR(100) NOT NULL\000d\000a)"; expected "identifier"; SQL statement:
+CREATE TABLE [USER] (
+    user_id IDENTITY PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(50) NOT NULL,
+    role VARCHAR(100) NOT NULL
+) [42001-232]
