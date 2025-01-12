@@ -11,8 +11,7 @@ CREATE TABLE TASKS (
 CREATE TABLE USERS (
     user_id IDENTITY PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
-    password VARCHAR(50) NOT NULL,
-    role VARCHAR(100) NOT NULL
+    password VARCHAR(50) NOT NULL
 );
 
 

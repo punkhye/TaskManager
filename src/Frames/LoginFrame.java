@@ -5,9 +5,11 @@ import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 
 import DBConnection.DBConnection;
+
+import static Frames.MainFrame.loggedUser;
+
 
 public class LoginFrame extends JFrame {
 
@@ -18,8 +20,9 @@ public class LoginFrame extends JFrame {
     JButton loginButton = new JButton("Login");
     JButton registerButton = new JButton("Register");
 
+
     static Connection conn = null;
-    static PreparedStatement preparedStatement = null;
+    static PreparedStatement statement = null;
     static ResultSet result = null;
 
     public LoginFrame() {
@@ -38,29 +41,41 @@ public class LoginFrame extends JFrame {
             loginButton.addActionListener(e -> {
                 conn = DBConnection.getConnection();
                 String username = usernameTextField.getText();
-                String password = passwordField.getText();
-                String query = "SELECT * FROM USERS WHERE username = ? AND password = ?";
+                String password = new String(passwordField.getPassword());
+                String str = "SELECT * FROM Users where username=? and password=? ";
                 try {
-                    preparedStatement =conn.prepareStatement(query);
-                    preparedStatement.setString(1, username);
-                    preparedStatement.setString(2, password);
-                    preparedStatement.execute();
+
+                    statement = conn.prepareStatement(str);
+                    statement.setString(1, username);
+                   statement.setString(2, password);
+                   result = statement.executeQuery();
 
                     if (result != null && result.next()) {
                         JOptionPane.showMessageDialog(null, "Login successful!");
-                    } else {
 
+                        loggedUser.setUser_id(result.getInt("user_id"));
+                        loggedUser.setUsername(result.getString("username"));
+                        loggedUser.setPassword(result.getString("password"));
+                       this.dispose();
+                        MainFrame frame = new MainFrame();
+
+                    } else {
                         JOptionPane.showMessageDialog(null, "Invalid username or password.");
                     }
 
-                } catch (SQLException ex) {
+                } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
 
 
             });
 
+            registerButton.addActionListener(e -> {
+                this.dispose();
+                RegisterFrame frame = new RegisterFrame();
 
+
+            });
 
 
         this.setVisible(true);
