@@ -4,8 +4,10 @@ CREATE TABLE TASKS (
     title VARCHAR(50) NOT NULL,
     description VARCHAR(1000)  NOT NULL,
     due_date DATE NOT NULL,
-    priority ENUM('not that important', 'middle priority', 'very important') NOT NULL
+    priority ENUM('Low Priority', 'Medium Priority', 'High Priority') NOT NULL
 );
+
+INSERT INTO tasks(title, description,due_date,priority) VALUES ('test', 'napravi tva i tva i tva','2025-01-12', 'Low Priority');
 
 
 CREATE TABLE USERS (
