@@ -46,7 +46,7 @@ public class LoginFrame extends JFrame {
                     preparedStatement.setString(2, password);
                     preparedStatement.execute();
 
-                    if (result.next()) {
+                    if (result != null && result.next()) {
                         JOptionPane.showMessageDialog(null, "Login successful!");
                     } else {
 
