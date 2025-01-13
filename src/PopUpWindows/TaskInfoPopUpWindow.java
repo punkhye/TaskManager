@@ -2,13 +2,18 @@ package PopUpWindows;
 
 import javax.swing.*;
 import java.awt.*;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 public class TaskInfoPopUpWindow extends JFrame {
 
     JLabel idLabel = new JLabel("Task Number: ");
     JLabel titleLabel = new JLabel("Title: ");
     JLabel descriptionLabel = new JLabel("Description: ");
-    JLabel dueDateLabel = new JLabel("The deadline for completing the task: ");
+    JLabel dueDateLabel = new JLabel("Deadline (dd-MM-yyyy): ");
     JLabel priorityLabel = new JLabel("Priority of this task: ");
 
     JPanel idPanel = new JPanel();
@@ -18,13 +23,17 @@ public class TaskInfoPopUpWindow extends JFrame {
     JPanel priorityPanel = new JPanel();
     JPanel buttonPanel = new JPanel();
 
+    LocalDate currentDate = LocalDate.now();
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+
+
     JButton okButton= new JButton("Ok");
 
     public TaskInfoPopUpWindow(int taskId, String title, String description, String dueDate, String priority) {
-
+        LocalDate targetDate = LocalDate.parse(dueDate, formatter);
+        long daysLeft = ChronoUnit.DAYS.between(currentDate, targetDate);
         this.setSize(500, 650);
         this.setLocationRelativeTo(null);
-        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.setLayout(new GridLayout(6,1));
 
         this.setTitle("Details of task " + taskId);
@@ -57,6 +66,9 @@ public class TaskInfoPopUpWindow extends JFrame {
         descriptionPanel.add(new JLabel(description)).setFont(new Font("Arial", Font.PLAIN, 16));
         dueDatePanel.add(dueDateLabel).setFont(new Font("Calibri", Font.BOLD, 20));;
         dueDatePanel.add(new JLabel(dueDate)).setFont(new Font("Arial", Font.PLAIN, 16));
+        dueDatePanel.add(new JLabel("                 "));
+        dueDatePanel.add(new JLabel("Days left: ")).setFont(new Font("Calibri", Font.BOLD, 20));
+        dueDatePanel.add(new JLabel(String.valueOf(daysLeft))).setFont(new Font("Arial", Font.PLAIN, 16));
         priorityPanel.add(priorityLabel).setFont(new Font("Calibri", Font.BOLD, 20));
         priorityPanel.add(new JLabel(priority)).setFont(new Font("Arial", Font.PLAIN, 16));
 

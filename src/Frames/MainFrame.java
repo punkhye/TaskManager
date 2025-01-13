@@ -10,8 +10,11 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 
 public class MainFrame extends JFrame {
 
@@ -77,11 +80,26 @@ public class MainFrame extends JFrame {
                     int taskId = Integer.parseInt(table.getValueAt(selectedRow, 0).toString());
                     String taskTitle = table.getValueAt(selectedRow, 1).toString();
                     String taskDescription = table.getValueAt(selectedRow, 2).toString();
-                    String taskDueDate = table.getValueAt(selectedRow, 3).toString();
+                    String taskDueDateString = table.getValueAt(selectedRow, 3).toString();
                     String taskPriority = table.getValueAt(selectedRow, 4).toString();
 
-                    if (e.getClickCount() == 2) {
-                        new TaskInfoPopUpWindow(taskId, taskTitle, taskDescription, taskDueDate, taskPriority);
+                    // Convert the string to a Date object
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                    java.util.Date parsedDate = null;
+                    try {
+                        parsedDate = sdf.parse(taskDueDateString);
+                    } catch (ParseException ex) {
+                        ex.printStackTrace();
+                    }
+
+                    // If the date is valid, format and pass to the pop-up
+                    if (parsedDate != null) {
+                        Date taskDueDate = new Date(parsedDate.getTime()); // Converts to java.sql.Date
+                        String formattedDate = new SimpleDateFormat("dd-MM-yyyy").format(taskDueDate); // Format the date as dd-MM-yyyy
+
+                        if (e.getClickCount() == 2) {
+                            new TaskInfoPopUpWindow(taskId, taskTitle, taskDescription, formattedDate, taskPriority);
+                        }
                     }
                 }
             }
