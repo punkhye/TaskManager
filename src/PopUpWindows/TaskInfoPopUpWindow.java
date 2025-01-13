@@ -67,8 +67,13 @@ public class TaskInfoPopUpWindow extends JFrame {
         dueDatePanel.add(dueDateLabel).setFont(new Font("Calibri", Font.BOLD, 20));;
         dueDatePanel.add(new JLabel(dueDate)).setFont(new Font("Arial", Font.PLAIN, 16));
         dueDatePanel.add(new JLabel("                 "));
-        dueDatePanel.add(new JLabel("Days left: ")).setFont(new Font("Calibri", Font.BOLD, 20));
-        dueDatePanel.add(new JLabel(String.valueOf(daysLeft))).setFont(new Font("Arial", Font.PLAIN, 16));
+        if(daysLeft > 0) {
+            dueDatePanel.add(new JLabel("Days left: ")).setFont(new Font("Calibri", Font.BOLD, 20));
+            dueDatePanel.add(new JLabel(String.valueOf(daysLeft))).setFont(new Font("Arial", Font.PLAIN, 16));
+        }else{
+            dueDatePanel.add(new JLabel("Task Overdue")).setFont(new Font("Calibri", Font.BOLD, 20));
+        }
+
         priorityPanel.add(priorityLabel).setFont(new Font("Calibri", Font.BOLD, 20));
         priorityPanel.add(new JLabel(priority)).setFont(new Font("Arial", Font.PLAIN, 16));
 
