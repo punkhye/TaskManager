@@ -24,6 +24,7 @@ public class TaskChartFrame extends JFrame {
         setTitle("Task Chart");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
 
         // Create dataset
         DefaultCategoryDataset dataset = createDataset();
