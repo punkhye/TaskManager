@@ -79,6 +79,7 @@ public class UpdateTaskFrame extends JFrame {
 
         // Create date picker
         datePicker = createDatePicker(currentDueDate);
+        datePicker.getJFormattedTextField().setText(currentDueDate);
 
         dueDatePanel.add(datePicker);
 
