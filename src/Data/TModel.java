@@ -20,7 +20,7 @@ public class TModel extends AbstractTableModel {
         this.rowCount = 0;
         this.columnNames = colsNames;
 
-        // Add data rows
+        // redovete
         while (rs.next()) {
             Object[] row = new Object[columnCount];
             for (int j = 0; j < columnCount; j++) {
@@ -46,9 +46,9 @@ public class TModel extends AbstractTableModel {
         Object[] row = (Object[]) data.get(rowIndex);
         Object value = row[columnIndex];
 
-        // Check if it's the "Due Date" column (assumed to be column 3, adjust if needed)
+
         if (columnIndex == 3 && value instanceof Date) {
-            // Format the date as dd-MM-yyyy
+
             SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
             return sdf.format((Date) value);
         }

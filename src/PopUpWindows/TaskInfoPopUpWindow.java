@@ -28,6 +28,7 @@ public class TaskInfoPopUpWindow extends JFrame {
         this.setSize(400, 400);
         this.setLocationRelativeTo(null);
         this.setLayout(new GridLayout(6, 1));
+        this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String formattedDueDate = taskDueDate.format(formatter);

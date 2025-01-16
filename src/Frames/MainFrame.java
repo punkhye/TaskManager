@@ -145,6 +145,7 @@ public class MainFrame extends JFrame {
                 }
             }
         });
+
         logoutButton.addActionListener(e -> {
             loggedUser.setUser_id(-1);
             loggedUser.setUsername(null);
