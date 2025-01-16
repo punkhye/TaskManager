@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -35,8 +35,6 @@ import org.h2.test.db.TestCluster;
 import org.h2.test.db.TestCompatibility;
 import org.h2.test.db.TestCompatibilityOracle;
 import org.h2.test.db.TestCompatibilitySQLServer;
-import org.h2.test.db.TestCompoundIndexParamSearch;
-import org.h2.test.db.TestCompoundIndexSearch;
 import org.h2.test.db.TestCsv;
 import org.h2.test.db.TestDateStorage;
 import org.h2.test.db.TestDeadlock;
@@ -209,6 +207,7 @@ import org.h2.test.unit.TestPageStoreCoverage;
 import org.h2.test.unit.TestPattern;
 import org.h2.test.unit.TestPerfectHash;
 import org.h2.test.unit.TestPgServer;
+import org.h2.test.unit.TestReader;
 import org.h2.test.unit.TestRecovery;
 import org.h2.test.unit.TestReopen;
 import org.h2.test.unit.TestSampleApps;
@@ -734,8 +733,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             addTest(new TestInit());
             addTest(new TestIndex());
             addTest(new TestIndexHints());
-            addTest(new TestCompoundIndexSearch());
-            addTest(new TestCompoundIndexParamSearch());
             addTest(new TestLargeBlob());
             addTest(new TestLinkedTable());
             addTest(new TestListener());
@@ -948,6 +945,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestObjectDeserialization());
         addTest(new TestOverflow());
         addTest(new TestPerfectHash());
+        addTest(new TestReader());
         addTest(new TestScriptReader());
         addTest(new TestSecurity());
         addTest(new TestShell());

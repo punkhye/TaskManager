@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -158,7 +158,12 @@ public class NetUtils {
 
     /**
      * Create a server socket. The system property h2.bindAddress is used if
-     * set.
+     * set. If SSL is used and h2.enableAnonymousTLS is true, an attempt is
+     * made to modify the security property jdk.tls.legacyAlgorithms
+     * (in newer JVMs) to allow anonymous TLS.
+     * <p>
+     * This system change is effectively permanent for the lifetime of the JVM.
+     * @see CipherFactory#removeAnonFromLegacyAlgorithms()
      *
      * @param port the port to listen on
      * @param ssl if SSL should be used

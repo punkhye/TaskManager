@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -446,7 +446,7 @@ public class FullTextLucene extends FullText {
                         && i + offset < totalHits
                         && i + offset < len; i++) {
                     ScoreDoc sd = docs.scoreDocs[i + offset];
-                    Document doc = searcher.getIndexReader().storedFields().document(sd.doc);
+                    Document doc = searcher.doc(sd.doc);
                     float score = sd.score;
                     String q = doc.get(LUCENE_FIELD_QUERY);
                     if (data) {

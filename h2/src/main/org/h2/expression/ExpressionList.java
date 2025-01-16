@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
 import org.h2.engine.SessionLocal;
-import org.h2.message.DbException;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.value.ExtTypeInfoRow;
@@ -115,21 +114,6 @@ public final class ExpressionList extends Expression {
     }
 
     @Override
-    public TypeInfo getTypeIfStaticallyKnown(SessionLocal session) {
-        int count = list.length;
-        TypeInfo[] types = new TypeInfo[count];
-        for (int i = 0; i < count; i++) {
-            TypeInfo t = list[i].getTypeIfStaticallyKnown(session);
-            if (t == null) {
-                return null;
-            }
-            types[i] = t;
-        }
-        return isArray ? TypeInfo.getTypeInfo(Value.ARRAY, list.length, 0, TypeInfo.getHigherType(types))
-                : TypeInfo.getTypeInfo(Value.ROW, 0, 0, new ExtTypeInfoRow(types));
-    }
-
-    @Override
     public boolean isConstant() {
         for (Expression e : list) {
             if (!e.isConstant()) {
@@ -151,28 +135,6 @@ public final class ExpressionList extends Expression {
 
     public boolean isArray() {
         return isArray;
-    }
-
-    /**
-     * Creates a copy of this expression list but the new instance will contain the subexpressions according to
-     * {@code newOrder}.<br />
-     * E.g.: ROW (?1, ?2).cloneWithOrder([1, 0]) returns ROW (?2, ?1)
-     * @param newOrder array of indexes to create the new subexpression array
-     */
-    public ExpressionList cloneWithOrder(int[] newOrder) {
-        int length = list.length;
-        if (newOrder.length != list.length) {
-            throw DbException.getInternalError("Length of the new orders is different than list size.");
-        }
-
-        Expression[] newList = new Expression[length];
-        for (int i = 0; i < length; i++) {
-            newList[i] = list[newOrder[i]];
-        }
-
-        ExpressionList clone = new ExpressionList(newList, isArray);
-        clone.initializeType();
-        return clone;
     }
 
 }

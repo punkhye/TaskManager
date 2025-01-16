@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0, and the
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0, and the
  * EPL 1.0 (https://h2database.com/html/license.html). Initial Developer: H2
  * Group
  */
@@ -69,7 +69,8 @@ import org.h2.value.ValueVarchar;
  * should be used.
  * </p>
  */
-public class JdbcConnection extends TraceObject implements Connection, CastDataProvider {
+public class JdbcConnection extends TraceObject implements Connection, JdbcConnectionBackwardsCompat,
+        CastDataProvider {
 
     private static final String NUM_SERVERS = "numServers";
     private static final String PREFIX_SERVER = "server";
@@ -86,8 +87,8 @@ public class JdbcConnection extends TraceObject implements Connection, CastDataP
 
     private Session session;
     private CommandInterface commit, rollback;
-    private CommandInterface getReadOnly;
-    private CommandInterface getQueryTimeout, setQueryTimeout;
+    private CommandInterface getReadOnly, getGeneratedKeys;
+    private CommandInterface setQueryTimeout, getQueryTimeout;
 
     private int savepointId;
     private String catalog;
@@ -149,10 +150,10 @@ public class JdbcConnection extends TraceObject implements Connection, CastDataP
         this.url = clone.url;
         this.catalog = clone.catalog;
         this.commit = clone.commit;
-        this.rollback = clone.rollback;
-        this.getReadOnly = clone.getReadOnly;
+        this.getGeneratedKeys = clone.getGeneratedKeys;
         this.getQueryTimeout = clone.getQueryTimeout;
-        this.setQueryTimeout = clone.setQueryTimeout;
+        this.getReadOnly = clone.getReadOnly;
+        this.rollback = clone.rollback;
         this.watcher = null;
         if (clone.clientInfo != null) {
             this.clientInfo = new HashMap<>(clone.clientInfo);
@@ -407,6 +408,7 @@ public class JdbcConnection extends TraceObject implements Connection, CastDataP
         commit = closeAndSetNull(commit);
         rollback = closeAndSetNull(rollback);
         getReadOnly = closeAndSetNull(getReadOnly);
+        getGeneratedKeys = closeAndSetNull(getGeneratedKeys);
         getQueryTimeout = closeAndSetNull(getQueryTimeout);
         setQueryTimeout = closeAndSetNull(setQueryTimeout);
     }
@@ -830,7 +832,7 @@ public class JdbcConnection extends TraceObject implements Connection, CastDataP
         try {
             debugCodeCall("getTypeMap");
             checkClosed();
-            return Map.of();
+            return null;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1861,7 +1863,7 @@ public class JdbcConnection extends TraceObject implements Connection, CastDataP
      * @throws DbException if the map is not empty
      */
     static void checkMap(Map<String, Class<?>> map) {
-        if (map != null && !map.isEmpty()) {
+        if (map != null && map.size() > 0) {
             throw DbException.getUnsupportedException("map.size > 0");
         }
     }

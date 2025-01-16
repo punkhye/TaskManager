@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -23,14 +23,6 @@ public class DocumentedMBean extends StandardMBean {
     private final String interfaceName;
     private Properties resources;
 
-    /**
-     * Constructor
-     * @param impl bean implementation
-     * @param mbeanInterface bean interface class
-     * @param <T> bean type
-     * @throws NotCompliantMBeanException if the mbeanInterface does not follow JMX design patterns
-     * for Management Interfaces, or if the given implementation does not implement the specified interface.
-     */
     public <T> DocumentedMBean(T impl, Class<T> mbeanInterface)
             throws NotCompliantMBeanException {
         super(impl, mbeanInterface);

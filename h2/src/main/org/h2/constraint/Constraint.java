@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -51,33 +51,13 @@ public abstract class Constraint extends SchemaObject implements Comparable<Cons
          * @return standard SQL type name
          */
         public String getSqlName() {
-            if (this == PRIMARY_KEY) {
+            if (this == Constraint.Type.PRIMARY_KEY) {
                 return "PRIMARY KEY";
             }
-            if (this == REFERENTIAL) {
+            if (this == Constraint.Type.REFERENTIAL) {
                 return "FOREIGN KEY";
             }
             return name();
-        }
-
-        /**
-         * Tests whether this type is a check or domain type or not.
-         *
-         * @return {@code true} if this type is a check or a domain type,
-         *         {@code false} otherwise
-         */
-        public boolean isCheck() {
-            return this == CHECK || this == DOMAIN;
-        }
-
-        /**
-         * Tests whether this type is a primary key or unique or not.
-         *
-         * @return {@code true} if this type is a primary key or unique type,
-         *         {@code false} otherwise
-         */
-        public boolean isUnique() {
-            return this == PRIMARY_KEY || this == UNIQUE;
         }
 
     }
@@ -211,6 +191,11 @@ public abstract class Constraint extends SchemaObject implements Comparable<Cons
             return 0;
         }
         return Integer.compare(getConstraintType().ordinal(), other.getConstraintType().ordinal());
+    }
+
+    @Override
+    public boolean isHidden() {
+        return table != null && table.isHidden();
     }
 
     /**

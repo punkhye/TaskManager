@@ -1,12 +1,9 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
-
-import static org.h2.util.Bits.INT_VH_BE;
-import static org.h2.util.Bits.LONG_VH_BE;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,6 +26,7 @@ import org.h2.engine.Mode.CharPadding;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
+import org.h2.util.Bits;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.HasSQL;
 import org.h2.util.IntervalUtils;
@@ -378,13 +376,10 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
 
     private static SoftReference<Value[]> softCache;
 
-    /**
-     * The largest BIGINT value, as a BigDecimal.
-     */
-    public static final BigDecimal MAX_LONG_DECIMAL = BigDecimal.valueOf(Long.MAX_VALUE);
+    static final BigDecimal MAX_LONG_DECIMAL = BigDecimal.valueOf(Long.MAX_VALUE);
 
     /**
-     * The smallest BIGINT value, as a BigDecimal.
+     * The smallest Long value, as a BigDecimal.
      */
     public static final BigDecimal MIN_LONG_DECIMAL = BigDecimal.valueOf(Long.MIN_VALUE);
 
@@ -392,19 +387,19 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
      * Convert a value to the specified type without taking scale and precision
      * into account.
      */
-    public static final int CONVERT_TO = 0;
+    static final int CONVERT_TO = 0;
 
     /**
      * Cast a value to the specified type. The scale is set if applicable. The
      * value is truncated to a required precision.
      */
-    public static final int CAST_TO = 1;
+    static final int CAST_TO = 1;
 
     /**
      * Cast a value to the specified type for assignment. The scale is set if
      * applicable. If precision is too large an exception is thrown.
      */
-    public static final int ASSIGN_TO = 2;
+    static final int ASSIGN_TO = 2;
 
     /**
      * Returns name of the specified data type.
@@ -1624,7 +1619,7 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
         case VARBINARY: {
             byte[] bytes = getBytesNoCopy();
             if (bytes.length == 4) {
-                return ValueInteger.get((int) INT_VH_BE.get(bytes, 0));
+                return ValueInteger.get(Bits.readInt(bytes, 0));
             }
         }
         //$FALL-THROUGH$
@@ -1679,7 +1674,7 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
         case VARBINARY: {
             byte[] bytes = getBytesNoCopy();
             if (bytes.length == 8) {
-                return ValueBigint.get((long) LONG_VH_BE.get(bytes, 0));
+                return ValueBigint.get(Bits.readLong(bytes, 0));
             }
         }
         //$FALL-THROUGH$
@@ -2384,20 +2379,7 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
         return result;
     }
 
-    /**
-     * Converts this value to a JSON value. May not be called on a NULL
-     * value.
-     *
-     * @param targetType
-     *            the type of the returned value
-     * @param conversionMode
-     *            conversion mode
-     * @param column
-     *            the column (if any), used to improve the error message if
-     *            conversion fails
-     * @return the JSON value
-     */
-    public ValueJson convertToJson(TypeInfo targetType, int conversionMode, Object column) {
+    private ValueJson convertToJson(TypeInfo targetType, int conversionMode, Object column) {
         ValueJson v;
         switch (getValueType()) {
         case JSON:
@@ -2746,14 +2728,16 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
 
     private static byte convertToByte(long x, Object column) {
         if (x > Byte.MAX_VALUE || x < Byte.MIN_VALUE) {
-            throw getOutOfRangeException(Long.toString(x), column);
+            throw DbException.get(
+                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Long.toString(x), getColumnName(column));
         }
         return (byte) x;
     }
 
     private static short convertToShort(long x, Object column) {
         if (x > Short.MAX_VALUE || x < Short.MIN_VALUE) {
-            throw getOutOfRangeException(Long.toString(x), column);
+            throw DbException.get(
+                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Long.toString(x), getColumnName(column));
         }
         return (short) x;
     }
@@ -2767,7 +2751,8 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
      */
     public static int convertToInt(long x, Object column) {
         if (x > Integer.MAX_VALUE || x < Integer.MIN_VALUE) {
-            throw getOutOfRangeException(Long.toString(x), column);
+            throw DbException.get(
+                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Long.toString(x), getColumnName(column));
         }
         return (int) x;
     }
@@ -2776,29 +2761,23 @@ public abstract class Value extends VersionedValue<Value> implements HasSQL, Typ
         if (x > Long.MAX_VALUE || x < Long.MIN_VALUE) {
             // TODO document that +Infinity, -Infinity throw an exception and
             // NaN returns 0
-            throw getOutOfRangeException(Double.toString(x), column);
+            throw DbException.get(
+                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Double.toString(x), getColumnName(column));
         }
         return Math.round(x);
     }
 
-    /**
-     * Convert to long, throwing exception if out of range.
-     *
-     * @param x long value.
-     * @param column Column info.
-     * @return x
-     */
-    public static long convertToLong(BigDecimal x, Object column) {
-        if (x.compareTo(MAX_LONG_DECIMAL) > 0 || x.compareTo(MIN_LONG_DECIMAL) < 0) {
-            throw getOutOfRangeException(x.toString(), column);
+    private static long convertToLong(BigDecimal x, Object column) {
+        if (x.compareTo(MAX_LONG_DECIMAL) > 0 ||
+                x.compareTo(MIN_LONG_DECIMAL) < 0) {
+            throw DbException.get(
+                    ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, x.toString(), getColumnName(column));
         }
         return x.setScale(0, RoundingMode.HALF_UP).longValue();
     }
 
-    private static DbException getOutOfRangeException(String string, Object column) {
-        return column != null
-                ? DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, string, column.toString())
-                : DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1, string);
+    private static String getColumnName(Object column) {
+        return column == null ? "" : column.toString();
     }
 
     @Override

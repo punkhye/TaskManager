@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -26,7 +26,6 @@ import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.ParserBase;
 import org.h2.command.Prepared;
-import org.h2.command.QueryScope;
 import org.h2.command.ddl.Analyze;
 import org.h2.command.query.Query;
 import org.h2.constraint.Constraint;
@@ -175,7 +174,6 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     private volatile long cancelAtNs;
     private final ValueTimestampTimeZone sessionStart;
     private Instant commandStartOrEnd;
-    private long statementModificationDataId;
     private ValueTimestampTimeZone currentTimestamp;
     private HashMap<String, Value> variables;
     private int queryTimeout;
@@ -572,7 +570,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      * @return the prepared statement
      */
     public Prepared prepare(String sql) {
-        return prepare(sql, false, false, null);
+        return prepare(sql, false, false);
     }
 
     /**
@@ -582,14 +580,12 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      * @param rightsChecked true if the rights have already been checked
      * @param literalsChecked true if the sql string has already been checked
      *            for literals (only used if ALLOW_LITERALS NONE is set).
-     * @param queryScope the scope of this query, or {@code null}
      * @return the prepared statement
      */
-    public Prepared prepare(String sql, boolean rightsChecked, boolean literalsChecked, QueryScope queryScope) {
+    public Prepared prepare(String sql, boolean rightsChecked, boolean literalsChecked) {
         Parser parser = new Parser(this);
         parser.setRightsChecked(rightsChecked);
         parser.setLiteralsChecked(literalsChecked);
-        parser.setQueryScope(queryScope);
         return parser.prepare(sql);
     }
 
@@ -598,14 +594,12 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      * already checked.
      *
      * @param sql the SQL statement
-     * @param queryScope the scope of this query, or {@code null}
      * @return the prepared statement
      */
-    public Query prepareQueryExpression(String sql, QueryScope queryScope) {
+    public Query prepareQueryExpression(String sql) {
         Parser parser = new Parser(this);
         parser.setRightsChecked(true);
         parser.setLiteralsChecked(true);
-        parser.setQueryScope(queryScope);
         return parser.prepareQueryExpression(sql);
     }
 
@@ -685,8 +679,8 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         beforeCommitOrRollback();
         if (hasTransaction()) {
             try {
-                transaction.commit();
                 markUsedTablesAsUpdated();
+                transaction.commit();
                 removeTemporaryLobs(true);
                 endTransaction();
             } finally {
@@ -710,7 +704,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         if (!locks.isEmpty()) {
             for (Table t : locks) {
                 if (t instanceof MVTable) {
-                    ((MVTable) t).afterCommit();
+                    ((MVTable) t).commit();
                 }
             }
         }
@@ -822,13 +816,13 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
     public void rollbackTo(Savepoint savepoint) {
         int index = savepoint == null ? 0 : savepoint.logIndex;
         if (hasTransaction()) {
+            markUsedTablesAsUpdated();
             if (savepoint == null) {
                 transaction.rollback();
                 transaction = null;
             } else {
                 transaction.rollbackToSavepoint(savepoint.transactionSavepoint);
             }
-            markUsedTablesAsUpdated();
         }
         if (savepoints != null) {
             String[] names = savepoints.keySet().toArray(new String[0]);
@@ -1671,7 +1665,6 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                     break;
                 }
             }
-            statementModificationDataId = database.getModificationDataId();
             transaction.markStatementStart(maps);
         }
         startStatement = -1;
@@ -1716,17 +1709,6 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
             transaction.markStatementEnd();
         }
         startStatement = -1;
-        statementModificationDataId = 0L;
-    }
-
-    /**
-     * Returns database data modification id on start of the current command.
-     *
-     * @return database data modification id on start of the current command
-     */
-    public long getStatementModificationDataId() {
-        long id = statementModificationDataId;
-        return id != 0L ? id : database.getModificationDataId();
     }
 
     /**

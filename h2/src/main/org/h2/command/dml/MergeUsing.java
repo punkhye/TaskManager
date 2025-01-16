@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -176,14 +176,15 @@ public final class MergeUsing extends DataChangeStatement {
     }
 
     @Override
-    public StringBuilder getPlanSQL(StringBuilder builder, int sqlFlags) {
-        targetTableFilter.getPlanSQL(builder.append("MERGE INTO "), false, sqlFlags);
+    public String getPlanSQL(int sqlFlags) {
+        StringBuilder builder = new StringBuilder("MERGE INTO ");
+        targetTableFilter.getPlanSQL(builder, false, sqlFlags);
         sourceTableFilter.getPlanSQL(builder.append('\n').append("USING "), false, sqlFlags);
         onCondition.getSQL(builder.append('\n').append("ON "), sqlFlags);
         for (When w : when) {
             w.getSQL(builder.append('\n'), sqlFlags);
         }
-        return builder;
+        return builder.toString();
     }
 
     @Override
@@ -521,7 +522,7 @@ public final class MergeUsing extends DataChangeStatement {
             TableFilter targetTableFilter = MergeUsing.this.targetTableFilter,
                     sourceTableFilter = MergeUsing.this.sourceTableFilter;
             if (columns == null) {
-                columns = targetTableFilter.getTable().getVisibleColumns();
+                columns = targetTableFilter.getTable().getColumns();
             }
             if (values.length != columns.length) {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);

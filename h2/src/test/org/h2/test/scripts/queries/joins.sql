@@ -1,4 +1,4 @@
--- Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -122,7 +122,7 @@ CREATE TABLE TESTB(ID IDENTITY);
 > ok
 
 explain SELECT TESTA.ID A, TESTB.ID B FROM TESTA, TESTB ORDER BY TESTA.ID, TESTB.ID;
->> SELECT "TESTA"."ID" AS "A", "TESTB"."ID" AS "B" FROM "PUBLIC"."TESTA" /* PUBLIC.PRIMARY_KEY_4 */ INNER JOIN "PUBLIC"."TESTB" /* PUBLIC.TESTB.tableScan */ ON 1=1 ORDER BY 1, 2 /* index sorted: 1 of 2 columns */
+>> SELECT "TESTA"."ID" AS "A", "TESTB"."ID" AS "B" FROM "PUBLIC"."TESTA" /* PUBLIC.TESTA.tableScan */ INNER JOIN "PUBLIC"."TESTB" /* PUBLIC.TESTB.tableScan */ ON 1=1 ORDER BY 1, 2
 
 DROP TABLE IF EXISTS TESTA, TESTB;
 > ok
@@ -1043,56 +1043,4 @@ FROM (SELECT 1 A) X JOIN (
 > A B C
 > - - -
 > 1 1 1
-> rows: 1
-
-EXPLAIN
-WITH TEST(ID) AS (VALUES 1)
-SELECT * FROM TEST A INNER JOIN TEST B ON TRUE LEFT OUTER JOIN TEST C ON C.ID = A.ID;
-> PLAN
-> -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-> WITH "TEST"("ID") AS ( VALUES (1) ) SELECT "A"."ID", "B"."ID", "C"."ID" FROM "TEST" "A" /* VALUES (1) */ INNER JOIN "TEST" "B" /* VALUES (1) */ ON 1=1 LEFT OUTER JOIN "TEST" "C" /* VALUES (1) */ ON "C"."ID" = "A"."ID"
-> rows: 1
-
--- Column A.ID cannot be referenced from this part of the query
-EXPLAIN
-WITH TEST(ID) AS (VALUES 1)
-SELECT * FROM TEST A INNER JOIN TEST B LEFT OUTER JOIN TEST C ON C.ID = A.ID ON TRUE;
-> exception COLUMN_NOT_FOUND_1
-
-WITH
-    A(A) AS (VALUES (1)),
-    B(B) AS (VALUES (1)),
-    C(C) AS (VALUES (1))
-SELECT
-    A.A,
-    (
-        SELECT B.B
-        FROM B
-        JOIN C
-        ON B.B = A.A
-        AND C.C = B.B
-    )
-FROM A;
-> A (SELECT B.B FROM B B INNER JOIN C C ON 1=1 WHERE (B.B = A.A) AND (C.C = B.B))
-> - -----------------------------------------------------------------------------
-> 1 1
-> rows: 1
-
-WITH
-    A(A) AS (VALUES (1)),
-    B(B) AS (VALUES (1)),
-    C(C) AS (VALUES (1))
-SELECT
-    A.A,
-    (
-        SELECT B.B
-        FROM B
-        LEFT JOIN C
-        ON B.B = A.A
-        AND C.C = B.B
-    )
-FROM A;
-> A (SELECT B.B FROM B B LEFT OUTER JOIN C C ON (B.B = A.A) AND (C.C = B.B))
-> - ------------------------------------------------------------------------
-> 1 1
 > rows: 1

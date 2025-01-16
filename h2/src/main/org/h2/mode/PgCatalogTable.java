@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,6 +7,7 @@ package org.h2.mode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import org.h2.constraint.Constraint;
 import org.h2.engine.Constants;
@@ -83,15 +84,15 @@ public final class PgCatalogTable extends MetaTable {
      */
     public static final int META_TABLE_TYPE_COUNT = PG_USER + 1;
 
-    private static final Object[][] PG_EXTRA_TYPES = { //
-            { 18, "char", 1, 0 }, //
-            { 19, "name", 64, 18 }, //
-            { 22, "int2vector", -1, 21 }, //
-            { 24, "regproc", 4, 0 }, //
+    private static final Object[][] PG_EXTRA_TYPES = {
+            { 18, "char", 1, 0 },
+            { 19, "name", 64, 18 },
+            { 22, "int2vector", -1, 21 },
+            { 24, "regproc", 4, 0 },
             { PgServer.PG_TYPE_INT2_ARRAY, "_int2", -1, PgServer.PG_TYPE_INT2 },
             { PgServer.PG_TYPE_INT4_ARRAY, "_int4", -1, PgServer.PG_TYPE_INT4 },
-            { PgServer.PG_TYPE_VARCHAR_ARRAY, "_varchar", -1, PgServer.PG_TYPE_VARCHAR }, //
-            { 2205, "regclass", 4, 0 }, //
+            { PgServer.PG_TYPE_VARCHAR_ARRAY, "_varchar", -1, PgServer.PG_TYPE_VARCHAR },
+            { 2205, "regclass", 4, 0 },
     };
 
     /**
@@ -351,12 +352,34 @@ public final class PgCatalogTable extends MetaTable {
         case PG_ATTRDEF:
             break;
         case PG_ATTRIBUTE:
-            getAllTables(session, null, null).forEach(table -> pgAttribute(session, rows, table));
+            for (Schema schema : database.getAllSchemas()) {
+                for (Table table : schema.getAllTablesAndViews(session)) {
+                    if (!hideTable(table, session)) {
+                        pgAttribute(session, rows, table);
+                    }
+                }
+            }
+            for (Table table: session.getLocalTempTables()) {
+                if (!hideTable(table, session)) {
+                    pgAttribute(session, rows, table);
+                }
+            }
             break;
         case PG_AUTHID:
             break;
         case PG_CLASS:
-            getAllTables(session, null, null).forEach(table -> pgClass(session, rows, table));
+            for (Schema schema : database.getAllSchemas()) {
+                for (Table table : schema.getAllTablesAndViews(session)) {
+                    if (!hideTable(table, session)) {
+                        pgClass(session, rows, table);
+                    }
+                }
+            }
+            for (Table table: session.getLocalTempTables()) {
+                if (!hideTable(table, session)) {
+                    pgClass(session, rows, table);
+                }
+            }
             break;
         case PG_CONSTRAINT:
             pgConstraint(session, rows);
@@ -582,43 +605,54 @@ public final class PgCatalogTable extends MetaTable {
 
     private void pgClass(SessionLocal session, ArrayList<Row> rows, Table table) {
         ArrayList<TriggerObject> triggers = table.getTriggers();
-        addClass(session, rows, table.getId(), table.getName(), table.getSchema().getId(), table.isView() ? "v" : "r",
-                false, triggers != null ? triggers.size() : 0);
+        addClass(session, rows, table.getId(), table.getName(), table.getSchema().getId(),
+                table.isView() ? "v" : "r", false, triggers != null ? triggers.size() : 0);
         ArrayList<Index> indexes = table.getIndexes();
         if (indexes != null) {
             for (Index index : indexes) {
                 if (index.getCreateSQL() == null) {
                     continue;
                 }
-                addClass(session, rows, index.getId(), index.getName(), index.getSchema().getId(), "i", true, 0);
+                addClass(session, rows, index.getId(), index.getName(), index.getSchema().getId(), "i", true,
+                        0);
             }
         }
     }
 
     private void pgConstraint(SessionLocal session, ArrayList<Row> rows) {
-        getAllConstraints(session).filter(constraint -> constraint.getConstraintType() != Constraint.Type.DOMAIN)
-                .forEach(constraint -> {
-                    Constraint.Type constraintType = constraint.getConstraintType();
-                    Table table = constraint.getTable();
-                    ArrayList<ValueSmallint> conkey = new ArrayList<>();
-                    for (Column column : constraint.getReferencedColumns(table)) {
-                        conkey.add(ValueSmallint.get((short) (column.getColumnId() + 1)));
-                    }
-                    Table refTable = constraint.getRefTable();
-                    add(session, rows,
-                            // OID
-                            ValueInteger.get(constraint.getId()),
-                            // CONNAME
-                            constraint.getName(),
-                            // CONTYPE
-                            StringUtils.toLowerEnglish(constraintType.getSqlName().substring(0, 1)),
-                            // CONRELID
-                            ValueInteger.get(table.getId()),
-                            // CONFRELID
-                            ValueInteger.get(refTable != null && refTable != table ? table.getId() : 0),
-                            // CONKEY
-                            ValueArray.get(TypeInfo.TYPE_SMALLINT, conkey.toArray(Value.EMPTY_VALUES), null));
-                });
+        for (Schema schema : database.getAllSchemasNoMeta()) {
+            for (Constraint constraint : schema.getAllConstraints()) {
+                Constraint.Type constraintType = constraint.getConstraintType();
+                if (constraintType == Constraint.Type.DOMAIN) {
+                    continue;
+                }
+                Table table = constraint.getTable();
+                if (hideTable(table, session)) {
+                    continue;
+                }
+                List<ValueSmallint> conkey = new ArrayList<>();
+                for (Column column : constraint.getReferencedColumns(table)) {
+                    conkey.add(ValueSmallint.get((short) (column.getColumnId() + 1)));
+                }
+                Table refTable = constraint.getRefTable();
+                add(session,
+                        rows,
+                        // OID
+                        ValueInteger.get(constraint.getId()),
+                        // CONNAME
+                        constraint.getName(),
+                        // CONTYPE
+                        StringUtils.toLowerEnglish(constraintType.getSqlName().substring(0, 1)),
+                        // CONRELID
+                        ValueInteger.get(table.getId()),
+                        // CONFRELID
+                        ValueInteger.get(refTable != null && refTable != table
+                                && !hideTable(refTable, session) ? table.getId() : 0),
+                        // CONKEY
+                        ValueArray.get(TypeInfo.TYPE_SMALLINT, conkey.toArray(Value.EMPTY_VALUES), null)
+                );
+            }
+        }
     }
 
     private void addAttribute(SessionLocal session, ArrayList<Row> rows, int id, int relId, Column column,

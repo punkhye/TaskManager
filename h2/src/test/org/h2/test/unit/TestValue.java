@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -272,7 +272,7 @@ public class TestValue extends TestDb {
     private void testUUID() {
         long maxHigh = 0, maxLow = 0, minHigh = -1L, minLow = -1L;
         for (int i = 0; i < 100; i++) {
-            ValueUuid uuid = ValueUuid.getNewRandom(4);
+            ValueUuid uuid = ValueUuid.getNewRandom();
             maxHigh |= uuid.getHigh();
             maxLow |= uuid.getLow();
             minHigh &= uuid.getHigh();

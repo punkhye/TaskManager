@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -73,13 +73,15 @@ public class DropDatabase extends DefineCommand {
             }
             for (Table t : tables) {
                 if (t.getName() != null &&
-                        TableType.TABLE == t.getTableType()) {
+                        TableType.TABLE == t.getTableType() &&
+                        !t.isHidden()) {
                     toRemove.add(t);
                 }
             }
             for (Table t : tables) {
                 if (t.getName() != null &&
-                        TableType.EXTERNAL_TABLE_ENGINE == t.getTableType()) {
+                        TableType.EXTERNAL_TABLE_ENGINE == t.getTableType() &&
+                        !t.isHidden()) {
                     toRemove.add(t);
                 }
             }
@@ -122,7 +124,7 @@ public class DropDatabase extends DefineCommand {
         addAll(schemas, DbObject.FUNCTION_ALIAS, list);
         addAll(schemas, DbObject.DOMAIN, list);
         for (SchemaObject obj : list) {
-            if (!obj.getSchema().isValid()) {
+            if (!obj.getSchema().isValid() || obj.isHidden()) {
                 continue;
             }
             db.removeSchemaObject(session, obj);

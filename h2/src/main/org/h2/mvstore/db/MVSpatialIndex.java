@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -193,18 +193,17 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last, boolean reverse) {
-        Iterator<Spatial> cursor = reverse ? spatialMap.keyIteratorReverse(null) : spatialMap.keyIterator(null);
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+        Iterator<Spatial> cursor = spatialMap.keyIterator(null);
         TransactionMap<Spatial, Value> map = getMap(session);
         Iterator<Spatial> it = new SpatialKeyIterator(map, cursor, false);
         return new MVStoreCursor(session, it, mvTable);
     }
 
     @Override
-    public Cursor findByGeometry(SessionLocal session, SearchRow first, SearchRow last, boolean reverse,
-            SearchRow intersection) {
+    public Cursor findByGeometry(SessionLocal session, SearchRow first, SearchRow last, SearchRow intersection) {
         if (intersection == null) {
-            return find(session, first, last, reverse);
+            return find(session, first, last);
         }
         Iterator<Spatial> cursor =
                 spatialMap.findIntersectingKeys(getKey(intersection));
@@ -283,6 +282,16 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     public double getCost(SessionLocal session, int[] masks, TableFilter[] filters,
             int filter, SortOrder sortOrder,
             AllColumnsForPlan allColumnsSet) {
+        return getCostRangeIndex(masks, columns);
+    }
+
+    /**
+     * Compute spatial index cost
+     * @param masks Search mask
+     * @param columns Table columns
+     * @return Index cost hint
+     */
+    public static long getCostRangeIndex(int[] masks, Column[] columns) {
         // Never use spatial tree index without spatial filter
         if (columns.length == 0) {
             return Long.MAX_VALUE;
@@ -294,7 +303,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
                 return Long.MAX_VALUE;
             }
         }
-        return 10 * getCostRangeIndex(masks, dataMap.sizeAsLongMax(), filters, filter, sortOrder, true, allColumnsSet);
+        return 2;
     }
 
     @Override
@@ -336,6 +345,12 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
         }
     }
 
+    @Override
+    public long getDiskSpaceUsed() {
+        // TODO estimate disk space usage
+        return 0;
+    }
+
     /**
      * Get the map to store the data.
      *
@@ -354,6 +369,7 @@ public class MVSpatialIndex extends MVIndex<Spatial, Value> implements SpatialIn
     public MVMap<Spatial, VersionedValue<Value>> getMVMap() {
         return dataMap.map;
     }
+
 
     /**
      * A cursor.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -423,7 +423,7 @@ public abstract class FileStore<C extends Chunk<C>>
                 stopBackgroundThread(millis >= 0);
                 // start the background thread if needed
                 if (millis > 0 && mvStore.isOpen()) {
-                    int sleep = Math.max(10, millis / 3);
+                    int sleep = Math.max(1, millis / 10);
                     BackgroundWriterThread t = new BackgroundWriterThread(this, sleep, toString());
                     if (backgroundWriterThread.compareAndSet(null, t)) {
                         t.start();
@@ -622,7 +622,7 @@ public abstract class FileStore<C extends Chunk<C>>
     }
 
     protected final boolean isIdle() {
-        return autoCompactLastFileOpCount >= getWriteCount() + getReadCount();
+        return autoCompactLastFileOpCount == getWriteCount() + getReadCount();
     }
 
     protected final void setLastChunk(C last) {
@@ -693,9 +693,7 @@ public abstract class FileStore<C extends Chunk<C>>
     }
 
     private boolean isRewritable(C chunk, long time) {
-        return chunk.isRewritable() && isSeasonedChunk(chunk, time)
-                // to prevent last saved chunk from being re-written as it may cause "endless" re-write loop
-                && chunk.version < getMvStore().getCurrentVersion() - 1;
+        return chunk.isRewritable() && isSeasonedChunk(chunk, time);
     }
 
     /**
@@ -1024,9 +1022,7 @@ public abstract class FileStore<C extends Chunk<C>>
                             break;
                         }
                     }
-                    if (!c.isLive() && validChunksById.get(c.id) == null &&
-                            (afterFullScan || readChunkHeaderAndFooter(c.block, c.id) == null)) {
-                        // chunk reference is invalid but chunk is not live anymore:
+                    if (!c.isLive()) {
                         // we can just remove entry from meta, referencing to this chunk,
                         // but store maybe R/O, and it's not properly started yet,
                         // so lets make this chunk "dead" and taking no space,
@@ -1839,8 +1835,7 @@ public abstract class FileStore<C extends Chunk<C>>
                     mvStore.tryCommit();
                 }
                 doHousekeeping(mvStore);
-                // less than 10 I/O operations will still count as "idle"
-                autoCompactLastFileOpCount = getWriteCount() + getReadCount() + 10;
+                autoCompactLastFileOpCount = getWriteCount() + getReadCount();
             }
         } catch (InterruptedException ignore) {
         } catch (Throwable e) {
@@ -1908,31 +1903,28 @@ public abstract class FileStore<C extends Chunk<C>>
         int rewrittenPageCount = 0;
         for (int chunkId : set) {
             C chunk = chunks.get(chunkId);
-            // there is a chance for a chunk to be dropped after set of chunks to be rewritten has been determined
-            if (chunk != null) {
-                long[] toc = getToC(chunk);
-                if (toc != null) {
-                    for (int pageNo = 0; (pageNo = chunk.occupancy.nextClearBit(pageNo)) < chunk.pageCount; ++pageNo) {
-                        long tocElement = toc[pageNo];
-                        int mapId = DataUtils.getPageMapId(tocElement);
-                        MVMap<String, String> metaMap = mvStore.getMetaMap();
-                        MVMap<?, ?> map = mapId == layout.getId() ? layout
-                                : mapId == metaMap.getId() ? metaMap : mvStore.getMap(mapId);
-                        if (map != null && !map.isClosed()) {
-                            assert !map.isSingleWriter();
-                            if (secondPass || DataUtils.isLeafPosition(tocElement)) {
-                                long pagePos = DataUtils.composePagePos(chunkId, tocElement);
-                                serializationLock.unlock();
-                                try {
-                                    if (map.rewritePage(pagePos)) {
-                                        ++rewrittenPageCount;
-                                        if (mapId == metaMap.getId()) {
-                                            mvStore.markMetaChanged();
-                                        }
+            long[] toc = getToC(chunk);
+            if (toc != null) {
+                for (int pageNo = 0; (pageNo = chunk.occupancy.nextClearBit(pageNo)) < chunk.pageCount; ++pageNo) {
+                    long tocElement = toc[pageNo];
+                    int mapId = DataUtils.getPageMapId(tocElement);
+                    MVMap<String, String> metaMap = mvStore.getMetaMap();
+                    MVMap<?, ?> map = mapId == layout.getId() ? layout
+                            : mapId == metaMap.getId() ? metaMap : mvStore.getMap(mapId);
+                    if (map != null && !map.isClosed()) {
+                        assert !map.isSingleWriter();
+                        if (secondPass || DataUtils.isLeafPosition(tocElement)) {
+                            long pagePos = DataUtils.composePagePos(chunkId, tocElement);
+                            serializationLock.unlock();
+                            try {
+                                if (map.rewritePage(pagePos)) {
+                                    ++rewrittenPageCount;
+                                    if (mapId == metaMap.getId()) {
+                                        mvStore.markMetaChanged();
                                     }
-                                } finally {
-                                    serializationLock.lock();
                                 }
+                            } finally {
+                                serializationLock.lock();
                             }
                         }
                     }

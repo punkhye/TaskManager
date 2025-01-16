@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -253,8 +253,9 @@ public final class Insert extends CommandWithValues implements ResultTarget {
     }
 
     @Override
-    public StringBuilder getPlanSQL(StringBuilder builder, int sqlFlags) {
-        table.getSQL(builder.append("INSERT INTO "), sqlFlags).append('(');
+    public String getPlanSQL(int sqlFlags) {
+        StringBuilder builder = new StringBuilder("INSERT INTO ");
+        table.getSQL(builder, sqlFlags).append('(');
         Column.writeColumns(builder, columns, sqlFlags);
         builder.append(")\n");
         if (insertFromSelect) {
@@ -273,9 +274,9 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 Expression.writeExpressions(builder.append('('), expr, sqlFlags).append(')');
             }
         } else {
-            query.getPlanSQL(builder, sqlFlags);
+            builder.append(query.getPlanSQL(sqlFlags));
         }
-        return builder;
+        return builder.toString();
     }
 
     @Override
@@ -285,7 +286,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 // special case where table is used as a sequence
                 columns = new Column[0];
             } else {
-                columns = table.getVisibleColumns();
+                columns = table.getColumns();
             }
         }
         if (!valuesExpressionList.isEmpty()) {

@@ -1,4 +1,4 @@
--- Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -8,12 +8,6 @@ SELECT CHAR_LENGTH(CAST(RANDOM_UUID() AS VARCHAR));
 
 SELECT RANDOM_UUID() = RANDOM_UUID();
 >> FALSE
-
-SELECT RANDOM_UUID(7) < RANDOM_UUID(7);
->> TRUE
-
-SELECT RANDOM_UUID(100);
-> exception INVALID_VALUE_2
 
 SELECT NEWID();
 > exception FUNCTION_NOT_FOUND_1

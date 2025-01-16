@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import org.h2.test.TestBase;
 import org.h2.tools.Shell;
 import org.h2.util.Task;
+import org.h2.util.Utils10;
 
 /**
  * Test the shell tool.
@@ -52,7 +53,7 @@ public class TestShell extends TestBase {
         shell.runTool("-url", "jdbc:h2:mem:", "-driver", "org.h2.Driver",
                 "-user", "sa", "-password", "sa", "-properties", "null",
                 "-sql", "select 'Hello ' || 'World' as hi");
-        String s = buff.toString(StandardCharsets.UTF_8);
+        String s = Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
         assertContains(s, "HI");
         assertContains(s, "Hello World");
         assertContains(s, "(1 row, ");
@@ -61,7 +62,7 @@ public class TestShell extends TestBase {
         buff = new ByteArrayOutputStream();
         shell.setOut(new PrintStream(buff, false, "UTF-8"));
         shell.runTool("-help");
-        s = buff.toString(StandardCharsets.UTF_8);
+        s = Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
         assertContains(s,
                 "Interactive command line tool to access a database using JDBC.");
 

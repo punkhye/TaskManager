@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,6 @@ import org.h2.api.ErrorCode;
 import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.TypedValueExpression;
-import org.h2.expression.ValueExpression;
 import org.h2.expression.function.CoalesceFunction;
 import org.h2.expression.function.CurrentDateTimeValueFunction;
 import org.h2.expression.function.RandFunction;
@@ -20,7 +19,6 @@ import org.h2.message.DbException;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueBigint;
-import org.h2.value.ValueInteger;
 import org.h2.value.ValueNull;
 
 /**
@@ -133,18 +131,8 @@ public final class FunctionsMSSQLServer extends ModeFunction {
         case ISNULL:
             return new CoalesceFunction(CoalesceFunction.COALESCE, args).optimize(session);
         case NEWID:
-            /*
-             * MS SQL Server uses version 4.
-             */
-            return new RandFunction(ValueExpression.get(ValueInteger.get(4)), RandFunction.RANDOM_UUID)
-                    .optimize(session);
         case NEWSEQUENTIALID:
-            /*
-             * MS SQL Server uses something non-standard, use standard version 7
-             * instead.
-             */
-            return new RandFunction(ValueExpression.get(ValueInteger.get(7)), RandFunction.RANDOM_UUID)
-                    .optimize(session);
+            return new RandFunction(null, RandFunction.RANDOM_UUID).optimize(session);
         case SCOPE_IDENTITY:
             type = SCOPE_IDENTITY_TYPE;
             break;

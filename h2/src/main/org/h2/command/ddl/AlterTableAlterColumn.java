@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -453,6 +453,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         data.temporary = table.isTemporary();
         data.persistData = table.isPersistData();
         data.persistIndexes = table.isPersistIndexes();
+        data.isHidden = table.isHidden();
         data.session = session;
         Table newTable = getSchema().createTable(data);
         newTable.setComment(table.getComment());

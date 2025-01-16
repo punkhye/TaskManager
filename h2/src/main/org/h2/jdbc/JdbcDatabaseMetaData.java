@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,7 +30,8 @@ import org.h2.value.ValueVarchar;
 /**
  * Represents the meta data for a database.
  */
-public final class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaData {
+public final class JdbcDatabaseMetaData extends TraceObject
+        implements DatabaseMetaData, JdbcDatabaseMetaDataBackwardsCompat {
 
     private final JdbcConnection conn;
 
@@ -246,7 +247,7 @@ public final class JdbcDatabaseMetaData extends TraceObject implements DatabaseM
      *            (uppercase for unquoted names)
      * @param table table name (must be specified)
      * @param unique only unique indexes
-     * @param approximate if true, return fast, but approximate CARDINALITY and PAGES
+     * @param approximate if true, return fast, but approximate CARDINALITY
      * @return the list of indexes and columns
      * @throws SQLException if the connection is closed
      */
@@ -2497,7 +2498,7 @@ public final class JdbcDatabaseMetaData extends TraceObject implements DatabaseM
     @Override
     public int getJDBCMinorVersion() {
         debugCodeCall("getJDBCMinorVersion");
-        return 3;
+        return 2;
     }
 
     /**

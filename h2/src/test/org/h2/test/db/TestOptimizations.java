@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -339,6 +339,7 @@ public class TestOptimizations extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("drop table test if exists");
         stat.execute("create table test(id int)");
+        stat.execute("create index idx_id_desc on test(id desc)");
         stat.execute("create index idx_id_asc on test(id)");
         ResultSet rs;
 
@@ -350,7 +351,7 @@ public class TestOptimizations extends TestDb {
         rs = stat.executeQuery("explain select * from test " +
                 "where id < 10 order by id desc");
         rs.next();
-        assertContains(rs.getString(1), "IDX_ID_ASC");
+        assertContains(rs.getString(1), "IDX_ID_DESC");
 
         rs.next();
         stat.execute("drop table test");

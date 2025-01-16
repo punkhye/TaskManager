@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -1557,7 +1557,7 @@ public class TestFunctions extends TestDb implements AggregateFunction {
         assertResult("34", stat, "SELECT TO_CHAR(X, 'SS') FROM T");
         assertResult("29554", stat, "SELECT TO_CHAR(X, 'SSSSS') FROM T");
         expected = new SimpleDateFormat("h:mm:ss aa").format(timestamp1979);
-        if (Locale.getDefault().equals(Locale.US)) {
+        if (Locale.getDefault().getLanguage().equals(Locale.ENGLISH.getLanguage())) {
             assertEquals("8:12:34 AM", expected);
         }
         assertResult(expected, stat, "SELECT TO_CHAR(X, 'TS') FROM T");

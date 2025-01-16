@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,6 +17,7 @@ import org.h2.command.Command;
 import org.h2.command.ParserBase;
 import org.h2.constraint.Constraint;
 import org.h2.constraint.Constraint.Type;
+import org.h2.constraint.ConstraintCheck;
 import org.h2.constraint.ConstraintDomain;
 import org.h2.constraint.ConstraintReferential;
 import org.h2.constraint.ConstraintUnique;
@@ -1005,20 +1006,36 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void checkConstraints(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows,
             String catalog) {
-        getAllConstraints(session)
-                .filter(constraint -> constraint.getConstraintType().isCheck()
-                        && checkIndex(session, constraint.getName(), indexFrom, indexTo))
-                .forEach(constraint -> checkConstraints(session, rows, catalog, constraint));
+        for (Schema schema : database.getAllSchemas()) {
+            for (Constraint constraint : schema.getAllConstraints()) {
+                Type constraintType = constraint.getConstraintType();
+                if (constraintType == Constraint.Type.CHECK) {
+                    ConstraintCheck check = (ConstraintCheck) constraint;
+                    Table table = check.getTable();
+                    if (hideTable(table, session)) {
+                        continue;
+                    }
+                } else if (constraintType != Constraint.Type.DOMAIN) {
+                    continue;
+                }
+                String constraintName = constraint.getName();
+                if (!checkIndex(session, constraintName, indexFrom, indexTo)) {
+                    continue;
+                }
+                checkConstraints(session, rows, catalog, constraint, constraintName);
+            }
+        }
     }
 
-    private void checkConstraints(SessionLocal session, ArrayList<Row> rows, String catalog, Constraint constraint) {
+    private void checkConstraints(SessionLocal session, ArrayList<Row> rows, String catalog, Constraint constraint,
+            String constraintName) {
         add(session, rows,
                 // CONSTRAINT_CATALOG
                 catalog,
                 // CONSTRAINT_SCHEMA
                 constraint.getSchema().getName(),
                 // CONSTRAINT_NAME
-                constraint.getName(),
+                constraintName,
                 // CHECK_CLAUSE
                 constraint.getExpression().getSQL(DEFAULT_SQL_FLAGS, Expression.WITHOUT_PARENTHESES)
         );
@@ -1055,20 +1072,52 @@ public final class InformationSchemaTable extends MetaTable {
     private void columns(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows, String catalog) {
         String mainSchemaName = database.getMainSchema().getName();
         String collation = database.getCompareMode().getName();
-        getAllTables(session, indexFrom, indexTo)
-                .forEach(table -> columns(session, rows, catalog, mainSchemaName, collation, table));
-    }
-
-    private void columns(SessionLocal session, ArrayList<Row> rows, String catalog, String mainSchemaName,
-            String collation, Table table) {
-        Column[] cols = table.getColumns();
-        for (int i = 0, l = cols.length; i < l;) {
-            columns(session, rows, catalog, mainSchemaName, collation, table, cols[i], ++i);
+        if (indexFrom != null && indexFrom.equals(indexTo)) {
+            String tableName = indexFrom.getString();
+            if (tableName == null) {
+                return;
+            }
+            for (Schema schema : database.getAllSchemas()) {
+                Table table = schema.getTableOrViewByName(session, tableName);
+                if (table != null) {
+                    columns(session, rows, catalog, mainSchemaName, collation, table, table.getName());
+                }
+            }
+            Table table = session.findLocalTempTable(tableName);
+            if (table != null) {
+                columns(session, rows, catalog, mainSchemaName, collation, table, table.getName());
+            }
+        } else {
+            for (Schema schema : database.getAllSchemas()) {
+                for (Table table : schema.getAllTablesAndViews(session)) {
+                    String tableName = table.getName();
+                    if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                        columns(session, rows, catalog, mainSchemaName, collation, table, tableName);
+                    }
+                }
+            }
+            for (Table table : session.getLocalTempTables()) {
+                String tableName = table.getName();
+                if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                    columns(session, rows, catalog, mainSchemaName, collation, table, tableName);
+                }
+            }
         }
     }
 
     private void columns(SessionLocal session, ArrayList<Row> rows, String catalog, String mainSchemaName,
-            String collation, Table table, Column c, int ordinalPosition) {
+            String collation, Table table, String tableName) {
+        if (hideTable(table, session)) {
+            return;
+        }
+        Column[] cols = table.getColumns();
+        for (int i = 0, l = cols.length; i < l;) {
+            columns(session, rows, catalog, mainSchemaName, collation, table, tableName, cols[i], ++i);
+        }
+    }
+
+    private void columns(SessionLocal session, ArrayList<Row> rows, String catalog, String mainSchemaName,
+            String collation, Table table, String tableName, Column c, int ordinalPosition) {
         TypeInfo typeInfo = c.getType();
         DataTypeInformation dt = DataTypeInformation.valueOf(typeInfo);
         String characterSetCatalog, characterSetSchema, characterSetName, collationName;
@@ -1126,7 +1175,7 @@ public final class InformationSchemaTable extends MetaTable {
                 // TABLE_SCHEMA
                 table.getSchema().getName(),
                 // TABLE_NAME
-                table.getName(),
+                tableName,
                 // COLUMN_NAME
                 c.getName(),
                 // ORDINAL_POSITION
@@ -1229,7 +1278,11 @@ public final class InformationSchemaTable extends MetaTable {
                 continue;
             }
             Table table = (Table) object;
-            if (!checkIndex(session, table.getName(), indexFrom, indexTo)) {
+            if (hideTable(table, session)) {
+                continue;
+            }
+            String tableName = table.getName();
+            if (!checkIndex(session, tableName, indexFrom, indexTo)) {
                 continue;
             }
             DbObject grantee = r.getGrantee();
@@ -1242,8 +1295,11 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void constraintColumnUsage(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows,
             String catalog) {
-        getAllConstraints(session)
-                .forEach(constraint -> constraintColumnUsage(session, indexFrom, indexTo, rows, catalog, constraint));
+        for (Schema schema : database.getAllSchemas()) {
+            for (Constraint constraint : schema.getAllConstraints()) {
+                constraintColumnUsage(session, indexFrom, indexTo, rows, catalog, constraint);
+            }
+        }
     }
 
     private void constraintColumnUsage(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows,
@@ -1255,7 +1311,7 @@ public final class InformationSchemaTable extends MetaTable {
             constraint.getExpression().isEverything(ExpressionVisitor.getColumnsVisitor(columns, null));
             for (Column column : columns) {
                 Table table = column.getTable();
-                if (checkIndex(session, table.getName(), indexFrom, indexTo)) {
+                if (checkIndex(session, table.getName(), indexFrom, indexTo) && !hideTable(table, session)) {
                     addConstraintColumnUsage(session, rows, catalog, constraint, column);
                 }
             }
@@ -1263,7 +1319,7 @@ public final class InformationSchemaTable extends MetaTable {
         }
         case REFERENTIAL: {
             Table table = constraint.getRefTable();
-            if (checkIndex(session, table.getName(), indexFrom, indexTo)) {
+            if (checkIndex(session, table.getName(), indexFrom, indexTo) && !hideTable(table, session)) {
                 for (Column column : constraint.getReferencedColumns(table)) {
                     addConstraintColumnUsage(session, rows, catalog, constraint, column);
                 }
@@ -1273,7 +1329,7 @@ public final class InformationSchemaTable extends MetaTable {
         case PRIMARY_KEY:
         case UNIQUE: {
             Table table = constraint.getTable();
-            if (checkIndex(session, table.getName(), indexFrom, indexTo)) {
+            if (checkIndex(session, table.getName(), indexFrom, indexTo) && !hideTable(table, session)) {
                 for (Column column : constraint.getReferencedColumns(table)) {
                     addConstraintColumnUsage(session, rows, catalog, constraint, column);
                 }
@@ -1474,6 +1530,9 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void elementTypesFieldsForTable(SessionLocal session, ArrayList<Row> rows, String catalog, int type,
             String mainSchemaName, String collation, String schemaName, Table table) {
+        if (hideTable(table, session)) {
+            return;
+        }
         String tableName = table.getName();
         Column[] cols = table.getColumns();
         for (int i = 0; i < cols.length; i++) {
@@ -1670,23 +1729,29 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void keyColumnUsage(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows,
             String catalog) {
-        getAllConstraints(session).forEach(constraint -> {
-            Constraint.Type constraintType = constraint.getConstraintType();
-            IndexColumn[] indexColumns;
-            if (constraintType.isUnique()) {
-                indexColumns = ((ConstraintUnique) constraint).getColumns();
-            } else if (constraintType == Constraint.Type.REFERENTIAL) {
-                indexColumns = ((ConstraintReferential) constraint).getColumns();
-            } else {
-                return;
+        for (Schema schema : database.getAllSchemas()) {
+            for (Constraint constraint : schema.getAllConstraints()) {
+                Constraint.Type constraintType = constraint.getConstraintType();
+                IndexColumn[] indexColumns = null;
+                if (constraintType == Constraint.Type.UNIQUE || constraintType == Constraint.Type.PRIMARY_KEY) {
+                    indexColumns = ((ConstraintUnique) constraint).getColumns();
+                } else if (constraintType == Constraint.Type.REFERENTIAL) {
+                    indexColumns = ((ConstraintReferential) constraint).getColumns();
+                }
+                if (indexColumns == null) {
+                    continue;
+                }
+                Table table = constraint.getTable();
+                if (hideTable(table, session)) {
+                    continue;
+                }
+                String tableName = table.getName();
+                if (!checkIndex(session, tableName, indexFrom, indexTo)) {
+                    continue;
+                }
+                keyColumnUsage(session, rows, catalog, constraint, constraintType, indexColumns, table, tableName);
             }
-            Table table = constraint.getTable();
-            String tableName = table.getName();
-            if (!checkIndex(session, tableName, indexFrom, indexTo)) {
-                return;
-            }
-            keyColumnUsage(session, rows, catalog, constraint, constraintType, indexColumns, table, tableName);
-        });
+        }
     }
 
     private void keyColumnUsage(SessionLocal session, ArrayList<Row> rows, String catalog, Constraint constraint,
@@ -1842,15 +1907,25 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void referentialConstraints(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows,
             String catalog) {
-        getAllConstraints(session)
-                .filter(constraint -> constraint.getConstraintType() == Type.REFERENTIAL
-                        && checkIndex(session, constraint.getName(), indexFrom, indexTo))
-                .forEach(constraint -> referentialConstraints(session, rows, catalog,
-                        (ConstraintReferential) constraint));
+        for (Schema schema : database.getAllSchemas()) {
+            for (Constraint constraint : schema.getAllConstraints()) {
+                if (constraint.getConstraintType() != Constraint.Type.REFERENTIAL) {
+                    continue;
+                }
+                if (hideTable(constraint.getTable(), session)) {
+                    continue;
+                }
+                String constraintName = constraint.getName();
+                if (!checkIndex(session, constraintName, indexFrom, indexTo)) {
+                    continue;
+                }
+                referentialConstraints(session, rows, catalog, (ConstraintReferential) constraint, constraintName);
+            }
+        }
     }
 
     private void referentialConstraints(SessionLocal session, ArrayList<Row> rows, String catalog,
-            ConstraintReferential constraint) {
+            ConstraintReferential constraint, String constraintName) {
         ConstraintUnique unique = constraint.getReferencedConstraint();
         add(session, rows,
                 // CONSTRAINT_CATALOG
@@ -1858,7 +1933,7 @@ public final class InformationSchemaTable extends MetaTable {
                 // CONSTRAINT_SCHEMA
                 constraint.getSchema().getName(),
                 // CONSTRAINT_NAME
-                constraint.getName(),
+                constraintName,
                 // UNIQUE_CONSTRAINT_CATALOG
                 catalog,
                 // UNIQUE_CONSTRAINT_SCHEMA
@@ -2094,10 +2169,27 @@ public final class InformationSchemaTable extends MetaTable {
     }
 
     private void tables(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows, String catalog) {
-        getAllTables(session, indexFrom, indexTo).forEach(table -> tables(session, rows, catalog, table));
+        for (Schema schema : database.getAllSchemas()) {
+            for (Table table : schema.getAllTablesAndViews(session)) {
+                String tableName = table.getName();
+                if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                    tables(session, rows, catalog, table, tableName);
+                }
+            }
+        }
+        for (Table table : session.getLocalTempTables()) {
+            String tableName = table.getName();
+            if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                tables(session, rows, catalog, table, tableName);
+            }
+        }
     }
 
-    private void tables(SessionLocal session, ArrayList<Row> rows, String catalog, Table table) {
+    private void tables(SessionLocal session, ArrayList<Row> rows, String catalog, Table table,
+            String tableName) {
+        if (hideTable(table, session)) {
+            return;
+        }
         String commitAction, storageType;
         if (table.isTemporary()) {
             commitAction = table.getOnCommitTruncate() ? "DELETE" : table.getOnCommitDrop() ? "DROP" : "PRESERVE";
@@ -2123,7 +2215,7 @@ public final class InformationSchemaTable extends MetaTable {
                 // TABLE_SCHEMA
                 table.getSchema().getName(),
                 // TABLE_NAME
-                table.getName(),
+                tableName,
                 // TABLE_TYPE
                 table.getSQLTableType(),
                 // IS_INSERTABLE_INTO"
@@ -2146,15 +2238,27 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void tableConstraints(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows,
             String catalog) {
-        getAllConstraints(session)
-                .filter(constraint -> constraint.getConstraintType() != Constraint.Type.DOMAIN
-                        && checkIndex(session, constraint.getTable().getName(), indexFrom, indexTo))
-                .forEach(constraint -> tableConstraints(session, rows, catalog, constraint));
+        for (Schema schema : database.getAllSchemas()) {
+            for (Constraint constraint : schema.getAllConstraints()) {
+                Constraint.Type constraintType = constraint.getConstraintType();
+                if (constraintType == Constraint.Type.DOMAIN) {
+                    continue;
+                }
+                Table table = constraint.getTable();
+                if (hideTable(table, session)) {
+                    continue;
+                }
+                String tableName = table.getName();
+                if (!checkIndex(session, tableName, indexFrom, indexTo)) {
+                    continue;
+                }
+                tableConstraints(session, rows, catalog, constraint, constraintType, table, tableName);
+            }
+        }
     }
 
-    private void tableConstraints(SessionLocal session, ArrayList<Row> rows, String catalog, Constraint constraint) {
-        Constraint.Type constraintType = constraint.getConstraintType();
-        Table table = constraint.getTable();
+    private void tableConstraints(SessionLocal session, ArrayList<Row> rows, String catalog, Constraint constraint,
+            Constraint.Type constraintType, Table table, String tableName) {
         Index index = constraint.getIndex();
         boolean enforced;
         if (constraintType != Constraint.Type.REFERENTIAL) {
@@ -2177,7 +2281,7 @@ public final class InformationSchemaTable extends MetaTable {
                 // TABLE_SCHEMA
                 table.getSchema().getName(),
                 // TABLE_NAME
-                table.getName(),
+                tableName,
                 // IS_DEFERRABLE
                 "NO",
                 // INITIALLY_DEFERRED
@@ -2208,7 +2312,11 @@ public final class InformationSchemaTable extends MetaTable {
                 continue;
             }
             Table table = (Table) object;
-            if (!checkIndex(session, table.getName(), indexFrom, indexTo)) {
+            if (hideTable(table, session)) {
+                continue;
+            }
+            String tableName = table.getName();
+            if (!checkIndex(session, tableName, indexFrom, indexTo)) {
                 continue;
             }
             addPrivileges(session, rows, r.getGrantee(), catalog, table, null, r.getRightMask());
@@ -2276,11 +2384,27 @@ public final class InformationSchemaTable extends MetaTable {
     }
 
     private void views(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows, String catalog) {
-        getAllTables(session, indexFrom, indexTo).filter(Table::isView)
-                .forEach(table -> views(session, rows, catalog, table));
+        for (Schema schema : database.getAllSchemas()) {
+            for (Table table : schema.getAllTablesAndViews(session)) {
+                if (table.isView()) {
+                    String tableName = table.getName();
+                    if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                        views(session, rows, catalog, table, tableName);
+                    }
+                }
+            }
+        }
+        for (Table table : session.getLocalTempTables()) {
+            if (table.isView()) {
+                String tableName = table.getName();
+                if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                    views(session, rows, catalog, table, tableName);
+                }
+            }
+        }
     }
 
-    private void views(SessionLocal session, ArrayList<Row> rows, String catalog, Table table) {
+    private void views(SessionLocal session, ArrayList<Row> rows, String catalog, Table table, String tableName) {
         String viewDefinition, status = "VALID";
         if (table instanceof TableView) {
             TableView view = (TableView) table;
@@ -2306,7 +2430,7 @@ public final class InformationSchemaTable extends MetaTable {
                 // TABLE_SCHEMA
                 table.getSchema().getName(),
                 // TABLE_NAME
-                table.getName(),
+                tableName,
                 // VIEW_DEFINITION
                 viewDefinition,
                 // CHECK_OPTION
@@ -2443,10 +2567,44 @@ public final class InformationSchemaTable extends MetaTable {
 
     private void indexes(SessionLocal session, Value indexFrom, Value indexTo, ArrayList<Row> rows, String catalog,
             boolean columns) {
-        getAllTables(session, indexFrom, indexTo).forEach(table -> indexes(session, rows, catalog, columns, table));
+        if (indexFrom != null && indexFrom.equals(indexTo)) {
+            String tableName = indexFrom.getString();
+            if (tableName == null) {
+                return;
+            }
+            for (Schema schema : database.getAllSchemas()) {
+                Table table = schema.getTableOrViewByName(session, tableName);
+                if (table != null) {
+                    indexes(session, rows, catalog, columns, table, table.getName());
+                }
+            }
+            Table table = session.findLocalTempTable(tableName);
+            if (table != null) {
+                indexes(session, rows, catalog, columns, table, table.getName());
+            }
+        } else {
+            for (Schema schema : database.getAllSchemas()) {
+                for (Table table : schema.getAllTablesAndViews(session)) {
+                    String tableName = table.getName();
+                    if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                        indexes(session, rows, catalog, columns, table, tableName);
+                    }
+                }
+            }
+            for (Table table : session.getLocalTempTables()) {
+                String tableName = table.getName();
+                if (checkIndex(session, tableName, indexFrom, indexTo)) {
+                    indexes(session, rows, catalog, columns, table, tableName);
+                }
+            }
+        }
     }
 
-    private void indexes(SessionLocal session, ArrayList<Row> rows, String catalog, boolean columns, Table table) {
+    private void indexes(SessionLocal session, ArrayList<Row> rows, String catalog, boolean columns, Table table,
+            String tableName) {
+        if (hideTable(table, session)) {
+            return;
+        }
         ArrayList<Index> indexes = table.getIndexes();
         if (indexes == null) {
             return;
@@ -2456,14 +2614,15 @@ public final class InformationSchemaTable extends MetaTable {
                 continue;
             }
             if (columns) {
-                indexColumns(session, rows, catalog, table, index);
+                indexColumns(session, rows, catalog, table, tableName, index);
             } else {
-                indexes(session, rows, catalog, table, index);
+                indexes(session, rows, catalog, table, tableName, index);
             }
         }
     }
 
-    private void indexes(SessionLocal session, ArrayList<Row> rows, String catalog, Table table, Index index) {
+    private void indexes(SessionLocal session, ArrayList<Row> rows, String catalog, Table table, String tableName,
+            Index index) {
         IndexType indexType = index.getIndexType();
         add(session, rows,
                 // INDEX_CATALOG
@@ -2477,7 +2636,7 @@ public final class InformationSchemaTable extends MetaTable {
                 // TABLE_SCHEMA
                 table.getSchema().getName(),
                 // TABLE_NAME
-                table.getName(),
+                tableName,
                 // INDEX_TYPE_NAME
                 indexType.getSQL(false),
                 // NULLS_DISTINCT
@@ -2491,7 +2650,8 @@ public final class InformationSchemaTable extends MetaTable {
             );
     }
 
-    private void indexColumns(SessionLocal session, ArrayList<Row> rows, String catalog, Table table, Index index) {
+    private void indexColumns(SessionLocal session, ArrayList<Row> rows, String catalog, Table table,
+            String tableName, Index index) {
         IndexColumn[] cols = index.getIndexColumns();
         int uniqueColumnCount = index.getUniqueColumnCount();
         for (int i = 0, l = cols.length; i < l;) {
@@ -2509,7 +2669,7 @@ public final class InformationSchemaTable extends MetaTable {
                     // TABLE_SCHEMA
                     table.getSchema().getName(),
                     // TABLE_NAME
-                    table.getName(),
+                    tableName,
                     // COLUMN_NAME
                     idxCol.column.getName(),
                     // ORDINAL_POSITION

@@ -1,11 +1,9 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
-
-import static org.h2.util.Bits.INT_VH_BE;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +25,7 @@ import org.h2.compress.LZFInputStream;
 import org.h2.compress.LZFOutputStream;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
+import org.h2.util.Bits;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 
@@ -163,7 +162,7 @@ public class CompressTool {
                     ((buff[pos++] & 0xff) << 8) +
                     (buff[pos] & 0xff);
         }
-        return (int) INT_VH_BE.get(buff, pos);
+        return Bits.readInt(buff, pos);
     }
 
     /**
@@ -178,7 +177,7 @@ public class CompressTool {
     public static int writeVariableInt(byte[] buff, int pos, int x) {
         if (x < 0) {
             buff[pos++] = (byte) 0xf0;
-            INT_VH_BE.set(buff, pos, x);
+            Bits.writeInt(buff, pos, x);
             return 5;
         } else if (x < 0x80) {
             buff[pos] = (byte) x;
@@ -193,11 +192,11 @@ public class CompressTool {
             buff[pos] = (byte) x;
             return 3;
         } else if (x < 0x1000_0000) {
-            INT_VH_BE.set(buff, pos, x | 0xe000_0000);
+            Bits.writeInt(buff, pos, x | 0xe000_0000);
             return 4;
         } else {
             buff[pos++] = (byte) 0xf0;
-            INT_VH_BE.set(buff, pos, x);
+            Bits.writeInt(buff, pos, x);
             return 5;
         }
     }

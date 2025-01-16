@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -48,8 +48,7 @@ public class MetaIndex extends Index {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last, boolean reverse) {
-        assert !reverse;
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
         ArrayList<Row> rows = meta.generateRows(session, first, last);
         return new MetaCursor(rows);
     }
@@ -118,8 +117,8 @@ public class MetaIndex extends Index {
     }
 
     @Override
-    public long getDiskSpaceUsed(boolean approximate) {
-        return meta.getDiskSpaceUsed(false, approximate);
+    public long getDiskSpaceUsed() {
+        return meta.getDiskSpaceUsed();
     }
 
     @Override

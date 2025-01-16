@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,10 +7,8 @@ package org.h2.command;
 
 import java.util.ArrayList;
 import org.h2.expression.ParameterInterface;
-import org.h2.result.BatchResult;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultWithGeneratedKeys;
-import org.h2.value.Value;
 
 /**
  * Represents a SQL statement.
@@ -602,29 +600,10 @@ public interface CommandInterface extends AutoCloseable {
      */
     ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest);
 
-
     /**
-     * Executes the statement with multiple sets of parameters.
-     *
-     * @param batchParameters
-     *            batch parameters
-     * @param generatedKeysRequest
-     *            {@code null} or {@code false} if generated keys are not needed,
-     *            {@code true} if generated keys should be configured
-     *            automatically, {@code int[]} to specify column indices to
-     *            return generated keys from, or {@code String[]} to specify
-     *            column names to return generated keys from
-     * @return result of batch execution
+     * Stop the command execution, release all locks and resources
      */
-    BatchResult executeBatchUpdate(ArrayList<Value[]> batchParameters, Object generatedKeysRequest);
-
-    /**
-     * Stop the command execution, release all locks and resources.
-     *
-     * @param commitIfAutoCommit
-     *            commit the session if auto-commit is enabled
-     */
-    void stop(boolean commitIfAutoCommit);
+    void stop();
 
     /**
      * Close the statement.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -29,8 +29,6 @@ import org.h2.table.DataChangeDeltaTable;
 import org.h2.table.DataChangeDeltaTable.ResultOption;
 import org.h2.table.Table;
 import org.h2.util.HasSQL;
-import org.h2.value.DataType;
-import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
 
@@ -172,22 +170,7 @@ public final class Merge extends CommandWithValues {
                 if (v == null) {
                     throw DbException.get(ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1, col.getTraceSQL());
                 }
-                TypeInfo colType = col.getType();
-                check: {
-                    TypeInfo rightType = v.getType();
-                    if (session.getMode().numericWithBooleanComparison) {
-                        int lValueType = colType.getValueType();
-                        if (lValueType == Value.BOOLEAN) {
-                            if (DataType.isNumericType(rightType.getValueType())) {
-                                break check;
-                            }
-                        } else if (DataType.isNumericType(lValueType) && rightType.getValueType() == Value.BOOLEAN) {
-                            break check;
-                        }
-                    }
-                    TypeInfo.checkComparable(colType, rightType);
-                }
-                k.get(j++).setValue(v.convertForAssignTo(colType, session, col));
+                k.get(j++).setValue(v);
             }
             count = update.update(deltaChangeCollector, deltaChangeCollectionMode);
         }
@@ -249,8 +232,8 @@ public final class Merge extends CommandWithValues {
     }
 
     @Override
-    public StringBuilder getPlanSQL(StringBuilder builder, int sqlFlags) {
-        builder.append(isReplace ? "REPLACE INTO " : "MERGE INTO ");
+    public String getPlanSQL(int sqlFlags) {
+        StringBuilder builder = new StringBuilder(isReplace ? "REPLACE INTO " : "MERGE INTO ");
         table.getSQL(builder, sqlFlags).append('(');
         Column.writeColumns(builder, columns, sqlFlags);
         builder.append(')');
@@ -270,9 +253,9 @@ public final class Merge extends CommandWithValues {
                 Expression.writeExpressions(builder.append('('), expr, sqlFlags).append(')');
             }
         } else {
-            query.getPlanSQL(builder, sqlFlags);
+            builder.append(query.getPlanSQL(sqlFlags));
         }
-        return builder;
+        return builder.toString();
     }
 
     @Override

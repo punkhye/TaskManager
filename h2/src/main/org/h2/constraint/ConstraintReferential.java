@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -78,6 +78,9 @@ public class ConstraintReferential extends Constraint {
             String quotedName, boolean internalIndex) {
         StringBuilder builder = new StringBuilder("ALTER TABLE ");
         forTable.getSQL(builder, DEFAULT_SQL_FLAGS).append(" ADD CONSTRAINT ");
+        if (forTable.isHidden()) {
+            builder.append("IF NOT EXISTS ");
+        }
         builder.append(quotedName);
         if (comment != null) {
             builder.append(" COMMENT ");
@@ -314,7 +317,7 @@ public class ConstraintReferential extends Constraint {
             SearchRow check, Row excluding) {
         Table searchTable = searchIndex.getTable();
         searchTable.lock(session, Table.READ_LOCK);
-        Cursor cursor = searchIndex.find(session, check, check, false);
+        Cursor cursor = searchIndex.find(session, check, check);
         while (cursor.next()) {
             SearchRow found;
             found = cursor.getSearchRow();

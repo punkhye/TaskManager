@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
@@ -19,6 +18,7 @@ import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
 import org.h2.store.FileStoreOutputStream;
 import org.h2.store.LobStorageInterface;
+import org.h2.util.Bits;
 import org.h2.util.IOUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
@@ -175,8 +175,8 @@ public final class ValueBlob extends ValueLob {
         LobData lobData = this.lobData, lobData2 = v2.lobData;
         if (lobData.getClass() == lobData2.getClass()) {
             if (lobData instanceof LobDataInMemory) {
-                return Integer.signum(Arrays.compareUnsigned(((LobDataInMemory) lobData).getSmall(),
-                        ((LobDataInMemory) lobData2).getSmall()));
+                return Bits.compareNotNullUnsigned(((LobDataInMemory) lobData).getSmall(),
+                        ((LobDataInMemory) lobData2).getSmall());
             } else if (lobData instanceof LobDataDatabase) {
                 if (((LobDataDatabase) lobData).getLobId() == ((LobDataDatabase) lobData2).getLobId()) {
                     return 0;
@@ -209,7 +209,7 @@ public final class ValueBlob extends ValueLob {
                         || IOUtils.readFully(is2, buf2, BLOCK_COMPARISON_SIZE) != BLOCK_COMPARISON_SIZE) {
                     throw DbException.getUnsupportedException("Invalid LOB");
                 }
-                int cmp = Integer.signum(Arrays.compareUnsigned(buf1, buf2));
+                int cmp = Bits.compareNotNullUnsigned(buf1, buf2);
                 if (cmp != 0) {
                     return cmp;
                 }

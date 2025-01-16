@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -749,21 +749,8 @@ public abstract class TestBase {
      * @throws AssertionError if the term was not found
      */
     protected void assertContains(String result, String contains) {
-        if (!result.contains(contains)) {
+        if (result.indexOf(contains) < 0) {
             fail(result + " does not contain: " + contains);
-        }
-    }
-
-    /**
-     * Check that a result does not contain the given substring.
-     *
-     * @param result the result value
-     * @param shallNotContain the term that must not appear in the result
-     * @throws AssertionError if the term has been found
-     */
-    protected void assertNotContaining(String result, String shallNotContain) {
-        if (result.contains(shallNotContain)) {
-            fail(result + " still contains: " + shallNotContain);
         }
     }
 
@@ -862,18 +849,6 @@ public abstract class TestBase {
     public void assertNull(Object obj) {
         if (obj != null) {
             fail("Expected: null got: " + obj);
-        }
-    }
-
-    /**
-     * Check that the passed String is empty.
-     *
-     * @param s the object
-     * @throws AssertionError if the String is not empty
-     */
-    public void assertEmpty(String s) {
-        if (s != null && !s.isEmpty()) {
-            fail("Expected: empty String but got: " + s);
         }
     }
 
@@ -1226,13 +1201,11 @@ public abstract class TestBase {
     }
 
     private static String formatRow(String[] row) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
+        String sb = "";
         for (String r : row) {
-            sb.append("{").append(r).append("}");
+            sb += "{" + r + "}";
         }
-        sb.append("}");
-        return sb.toString();
+        return "{" + sb + "}";
     }
 
     /**
@@ -1487,12 +1460,14 @@ public abstract class TestBase {
                         " for " + formatMethodCall(m, args));
             }
             if (!expectedExceptionClass.isAssignableFrom(t.getClass())) {
-                throw new AssertionError("Expected an exception of type\n" +
+                AssertionError ae = new AssertionError("Expected an exception of type\n" +
                         expectedExceptionClass.getSimpleName() +
                         " to be thrown, but the method under test threw an exception of type\n" +
                         t.getClass().getSimpleName() +
                         " (see in the 'Caused by' for the exception that was thrown) for " +
-                        formatMethodCall(m, args), t);
+                        formatMethodCall(m, args));
+                ae.initCause(t);
+                throw ae;
             }
             return false;
         }, obj);
@@ -1539,10 +1514,18 @@ public abstract class TestBase {
     protected <T> T assertThrows(final ResultVerifier verifier, final T obj) {
         Class<?> c = obj.getClass();
         InvocationHandler ih = new InvocationHandler() {
+            private Exception called = new Exception("No method called");
+            @Override
+            protected void finalize() {
+                if (called != null) {
+                    called.printStackTrace(System.err);
+                }
+            }
             @Override
             public Object invoke(Object proxy, Method method, Object[] args)
                     throws Exception {
                 try {
+                    called = null;
                     Object ret = method.invoke(obj, args);
                     verifier.verify(ret, null, method, args);
                     return ret;
@@ -1660,9 +1643,11 @@ public abstract class TestBase {
 
     private static void checkException(Class<?> expectedExceptionClass, Throwable t) throws AssertionError {
         if (!expectedExceptionClass.isAssignableFrom(t.getClass())) {
-            throw new AssertionError("Expected an exception of type\n"
+            AssertionError ae = new AssertionError("Expected an exception of type\n"
                     + expectedExceptionClass.getSimpleName() + " to be thrown, but an exception of type\n"
-                    + t.getClass().getSimpleName() + " was thrown", t);
+                    + t.getClass().getSimpleName() + " was thrown");
+            ae.initCause(t);
+            throw ae;
         }
     }
 
@@ -1684,10 +1669,11 @@ public abstract class TestBase {
             errorCode = 0;
         }
         if (errorCode != expectedErrorCode) {
-            throw new AssertionError("Expected an SQLException or DbException with error code " + expectedErrorCode
-                    + ", but got a "
-                    + (t == null ? "null" : t.getClass().getName() + " exception " + " with error code " + errorCode),
-                    t);
+            AssertionError ae = new AssertionError("Expected an SQLException or DbException with error code "
+                    + expectedErrorCode + ", but got a "
+                    + (t == null ? "null" : t.getClass().getName() + " exception " + " with error code " + errorCode));
+            ae.initCause(t);
+            throw ae;
         }
     }
 

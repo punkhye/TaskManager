@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -262,7 +262,7 @@ public class TableValueConstructor extends Query {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, boolean outer) {
+    public void mapColumns(ColumnResolver resolver, int level) {
         int columnCount = visibleColumnCount;
         for (ArrayList<Expression> row : rows) {
             for (int i = 0; i < columnCount; i++) {
@@ -318,11 +318,11 @@ public class TableValueConstructor extends Query {
     }
 
     @Override
-    public StringBuilder getPlanSQL(StringBuilder builder, int sqlFlags) {
-        writeWithList(builder, sqlFlags);
+    public String getPlanSQL(int sqlFlags) {
+        StringBuilder builder = new StringBuilder();
         getValuesSQL(builder, sqlFlags, rows);
         appendEndOfQueryToSQL(builder, sqlFlags, expressionArray);
-        return builder;
+        return builder.toString();
     }
 
     @Override

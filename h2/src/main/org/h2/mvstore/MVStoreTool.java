@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -32,8 +32,6 @@ import org.h2.util.Utils;
  * Utility methods used in combination with the MVStore.
  */
 public class MVStoreTool {
-
-    public static final int MAX_NB_FILE_HEADERS_PER_FILE = 2;
 
     /**
      * Runs this tool.
@@ -121,7 +119,6 @@ public class MVStoreTool {
             int len = Long.toHexString(fileSize).length();
             ByteBuffer buffer = ByteBuffer.allocate(4096);
             long pageCount = 0;
-            int readFileHeaderCount = 0;
             for (long pos = 0; pos < fileSize; ) {
                 buffer.rewind();
                 // Bugfix - An MVStoreException that wraps EOFException is
@@ -137,12 +134,11 @@ public class MVStoreTool {
                 }
                 buffer.rewind();
                 int headerType = buffer.get();
-                if (headerType == 'H' && readFileHeaderCount < MAX_NB_FILE_HEADERS_PER_FILE) {
+                if (headerType == 'H') {
                     String header = new String(buffer.array(), StandardCharsets.ISO_8859_1).trim();
                     pw.printf("%0" + len + "x fileHeader %s%n",
                             pos, header);
                     pos += blockSize;
-                    readFileHeaderCount++;
                     continue;
                 }
                 if (headerType != 'c') {
@@ -153,11 +149,7 @@ public class MVStoreTool {
                 Chunk c;
                 try {
                     c = new SFChunk(Chunk.readChunkHeader(buffer));
-                    c.block = pos / blockSize;
                 } catch (MVStoreException e) {
-                    // Chunks are not always contiguous (due to chunk compaction/move/drop and space re-use)
-                    // Blocks following a chunk can therefore contain something else than a valid chunk header
-                    // In that case, let's move to the next block
                     pos += blockSize;
                     continue;
                 }
@@ -643,8 +635,8 @@ public class MVStoreTool {
                 DataUtils.readFully(file, pos, buffer);
                 buffer.rewind();
                 int headerType = buffer.get();
-                buffer.rewind();
                 if (headerType == 'H') {
+                    buffer.rewind();
                     target.write(buffer, pos);
                     pos += blockSize;
                     continue;

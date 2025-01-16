@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -36,9 +36,12 @@ public final class FunctionsOracle extends ModeFunction {
     private static final HashMap<String, FunctionInfo> FUNCTIONS = new HashMap<>();
 
     static {
-        FUNCTIONS.put("ADD_MONTHS", new FunctionInfo("ADD_MONTHS", ADD_MONTHS, 2, Value.TIMESTAMP, true, true));
-        FUNCTIONS.put("SYS_GUID", new FunctionInfo("SYS_GUID", SYS_GUID, 0, Value.VARBINARY, false, false));
-        FUNCTIONS.put("TO_DATE", new FunctionInfo("TO_DATE", TO_DATE, VAR_ARGS, Value.TIMESTAMP, true, true));
+        FUNCTIONS.put("ADD_MONTHS",
+                new FunctionInfo("ADD_MONTHS", ADD_MONTHS, 2, Value.TIMESTAMP, true, true));
+        FUNCTIONS.put("SYS_GUID",
+                new FunctionInfo("SYS_GUID", SYS_GUID, 0, Value.VARBINARY, false, false));
+        FUNCTIONS.put("TO_DATE",
+                new FunctionInfo("TO_DATE", TO_DATE, VAR_ARGS, Value.TIMESTAMP, true, true));
         FUNCTIONS.put("TO_TIMESTAMP",
                 new FunctionInfo("TO_TIMESTAMP", TO_TIMESTAMP, VAR_ARGS, Value.TIMESTAMP, true, true));
         FUNCTIONS.put("TO_TIMESTAMP_TZ",
@@ -112,11 +115,7 @@ public final class FunctionsOracle extends ModeFunction {
             result = DateTimeFunction.dateadd(session, DateTimeFunction.MONTH, v1.getInt(), v0);
             break;
         case SYS_GUID:
-            /*
-             * Oracle actually uses version 8 (vendor-specific). Standard
-             * version 7 is more similar to it than default 4.
-             */
-            result = ValueUuid.getNewRandom(7).convertTo(TypeInfo.TYPE_VARBINARY);
+            result = ValueUuid.getNewRandom().convertTo(TypeInfo.TYPE_VARBINARY);
             break;
         case TO_DATE:
             result = ToDateParser.toDate(session, v0.getString(), v1 == null ? null : v1.getString());

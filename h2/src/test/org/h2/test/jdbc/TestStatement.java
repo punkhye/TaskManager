@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,6 +16,7 @@ import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.SysProperties;
+import org.h2.jdbc.JdbcStatement;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
@@ -49,7 +50,6 @@ public class TestStatement extends TestDb {
         testPreparedStatement();
         testCloseOnCompletion();
         testIdentityMerge();
-        testMultipleCommands();
         conn.close();
         deleteDb("statement");
         testIdentifiers();
@@ -70,7 +70,6 @@ public class TestStatement extends TestDb {
     }
 
     private void testUnsupportedOperations() throws Exception {
-        assertTrue(conn.getTypeMap().isEmpty());
         conn.setTypeMap(null);
         HashMap<String, Class<?>> map = new HashMap<>();
         conn.setTypeMap(map);
@@ -440,16 +439,10 @@ public class TestStatement extends TestDb {
         stat.execute("drop table test");
     }
 
-    private void testMultipleCommands() throws SQLException{
-        Statement stat = conn.createStatement();
-        stat.executeQuery("VALUES 1; VALUES 2");
-        stat.close();
-    }
-
     private void testIdentifiers() throws SQLException {
         Connection conn = getConnection("statement");
 
-        Statement stat = conn.createStatement();
+        JdbcStatement stat = (JdbcStatement) conn.createStatement();
         assertEquals("SOME_ID", stat.enquoteIdentifier("SOME_ID", false));
         assertEquals("\"SOME ID\"", stat.enquoteIdentifier("SOME ID", false));
         assertEquals("\"SOME_ID\"", stat.enquoteIdentifier("SOME_ID", true));
@@ -487,7 +480,7 @@ public class TestStatement extends TestDb {
         deleteDb("statement");
         conn = getConnection("statement;DATABASE_TO_LOWER=TRUE");
 
-        Statement stat2 = conn.createStatement();
+        JdbcStatement stat2 = (JdbcStatement) conn.createStatement();
         assertEquals("some_id", stat2.enquoteIdentifier("some_id", false));
         assertEquals("\"some id\"", stat2.enquoteIdentifier("some id", false));
         assertEquals("\"some_id\"", stat2.enquoteIdentifier("some_id", true));
@@ -507,7 +500,7 @@ public class TestStatement extends TestDb {
         deleteDb("statement");
         conn = getConnection("statement;DATABASE_TO_UPPER=FALSE");
 
-        Statement stat3 = conn.createStatement();
+        JdbcStatement stat3 = (JdbcStatement) conn.createStatement();
         assertEquals("SOME_ID", stat3.enquoteIdentifier("SOME_ID", false));
         assertEquals("some_id", stat3.enquoteIdentifier("some_id", false));
         assertEquals("\"SOME ID\"", stat3.enquoteIdentifier("SOME ID", false));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import org.h2.command.QueryScope;
 import org.h2.command.query.AllColumnsForPlan;
 import org.h2.command.query.Query;
 import org.h2.engine.DbObject;
@@ -26,6 +25,7 @@ import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
+import org.h2.util.StringUtils;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 
@@ -87,11 +87,19 @@ public abstract class QueryExpressionTable extends Table {
      *            clause overriding usual select names)
      * @param theQuery
      *            - the query object we want the column list for
+     * @param querySQLOutput
+     *            - array of length 1 to receive extra 'output' field in
+     *            addition to return value - containing the SQL query of the
+     *            Query object
      * @return a list of column object returned by withQuery
      */
-    public static List<Column> createQueryColumnTemplateList(String[] cols, Query theQuery) {
+    public static List<Column> createQueryColumnTemplateList(String[] cols, Query theQuery, String[] querySQLOutput) {
         ArrayList<Column> columnTemplateList = new ArrayList<>();
         theQuery.prepare();
+        // String array of length 1 is to receive extra 'output' field in
+        // addition to
+        // return value
+        querySQLOutput[0] = StringUtils.cache(theQuery.getPlanSQL(ADD_PLAN_INFORMATION));
         SessionLocal session = theQuery.getSession();
         ArrayList<Expression> withExpressions = theQuery.getExpressions();
         for (int i = 0; i < withExpressions.size(); ++i) {
@@ -105,7 +113,19 @@ public abstract class QueryExpressionTable extends Table {
         return columnTemplateList;
     }
 
+    static int getMaxParameterIndex(ArrayList<Parameter> parameters) {
+        int result = -1;
+        for (Parameter p : parameters) {
+            if (p != null) {
+                result = Math.max(result, p.getIndex());
+            }
+        }
+        return result;
+    }
+
     Query viewQuery;
+
+    QueryExpressionIndex index;
 
     ArrayList<Table> tables;
 
@@ -169,7 +189,7 @@ public abstract class QueryExpressionTable extends Table {
         Map<Object, QueryExpressionIndex> indexCache = session.getViewIndexCache(getTableType() == null);
         QueryExpressionIndex i = indexCache.get(cacheKey);
         if (i == null || i.isExpired()) {
-            i = createIndex(session, masks);
+            i = new QueryExpressionIndex(this, index, session, masks, filters, filter, sortOrder);
             indexCache.put(cacheKey, i);
         }
         PlanItem item = new PlanItem();
@@ -177,8 +197,6 @@ public abstract class QueryExpressionTable extends Table {
         item.setIndex(i);
         return item;
     }
-
-    abstract QueryExpressionIndex createIndex(SessionLocal session, int[] masks);
 
     @Override
     public boolean isQueryComparable() {
@@ -222,6 +240,7 @@ public abstract class QueryExpressionTable extends Table {
 
     @Override
     public final boolean canGetRowCount(SessionLocal session) {
+        // TODO could get the row count, but not that easy
         return false;
     }
 
@@ -239,11 +258,11 @@ public abstract class QueryExpressionTable extends Table {
      */
     public final int getParameterOffset(ArrayList<Parameter> additionalParameters) {
         Query topQuery = getTopQuery();
-        int result = topQuery == null ? 0 : Parameter.getMaxIndex(topQuery.getParameters());
+        int result = topQuery == null ? -1 : getMaxParameterIndex(topQuery.getParameters());
         if (additionalParameters != null) {
-            result = Math.max(result, Parameter.getMaxIndex(additionalParameters));
+            result = Math.max(result, getMaxParameterIndex(additionalParameters));
         }
-        return result;
+        return result + 1;
     }
 
     @Override
@@ -296,12 +315,5 @@ public abstract class QueryExpressionTable extends Table {
             }
         }
     }
-
-    /**
-     * Returns the scope of this table
-     *
-     * @return the scope of this table
-     */
-    public abstract QueryScope getQueryScope();
 
 }

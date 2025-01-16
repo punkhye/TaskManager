@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,7 +34,6 @@ import java.util.UUID;
 import org.h2.api.ErrorCode;
 import org.h2.api.Interval;
 import org.h2.engine.Session;
-import org.h2.expression.Format;
 import org.h2.jdbc.JdbcArray;
 import org.h2.jdbc.JdbcBlob;
 import org.h2.jdbc.JdbcClob;
@@ -87,72 +86,69 @@ public final class ValueToObjectConverter extends TraceObject {
             return ValueNull.INSTANCE;
         } else if (type == Value.JAVA_OBJECT) {
             return ValueJavaObject.getNoCopy(JdbcUtils.serialize(x, session.getJavaObjectSerializer()));
-        }
-        Value v;
-        Class<?> clazz;
-        if (x instanceof Value) {
-            v = (Value) x;
+        } else if (x instanceof Value) {
+            Value v = (Value) x;
             if (v instanceof ValueLob) {
                 session.addTemporaryLob((ValueLob) v);
             }
-        } else if ((clazz = x.getClass()) == String.class) {
-            v = ValueVarchar.get((String) x, session);
+            return v;
+        }
+        Class<?> clazz = x.getClass();
+        if (clazz == String.class) {
+            return ValueVarchar.get((String) x, session);
         } else if (clazz == Long.class) {
-            v = ValueBigint.get((Long) x);
+            return ValueBigint.get((Long) x);
         } else if (clazz == Integer.class) {
-            v = ValueInteger.get((Integer) x);
+            return ValueInteger.get((Integer) x);
         } else if (clazz == Boolean.class) {
-            v = ValueBoolean.get((Boolean) x);
+            return ValueBoolean.get((Boolean) x);
         } else if (clazz == Byte.class) {
-            v = ValueTinyint.get((Byte) x);
+            return ValueTinyint.get((Byte) x);
         } else if (clazz == Short.class) {
-            v = ValueSmallint.get((Short) x);
+            return ValueSmallint.get((Short) x);
         } else if (clazz == Float.class) {
-            v = ValueReal.get((Float) x);
+            return ValueReal.get((Float) x);
         } else if (clazz == Double.class) {
-            v = ValueDouble.get((Double) x);
+            return ValueDouble.get((Double) x);
         } else if (clazz == byte[].class) {
-            v = ValueVarbinary.get((byte[]) x);
+            return ValueVarbinary.get((byte[]) x);
         } else if (clazz == UUID.class) {
-            v = ValueUuid.get((UUID) x);
+            return ValueUuid.get((UUID) x);
         } else if (clazz == Character.class) {
-            v = ValueChar.get(((Character) x).toString());
+            return ValueChar.get(((Character) x).toString());
         } else if (clazz == LocalDate.class) {
-            v = JSR310Utils.localDateToValue((LocalDate) x);
+            return JSR310Utils.localDateToValue((LocalDate) x);
         } else if (clazz == LocalTime.class) {
-            v = JSR310Utils.localTimeToValue((LocalTime) x);
+            return JSR310Utils.localTimeToValue((LocalTime) x);
         } else if (clazz == LocalDateTime.class) {
-            v = JSR310Utils.localDateTimeToValue((LocalDateTime) x);
+            return JSR310Utils.localDateTimeToValue((LocalDateTime) x);
         } else if (clazz == Instant.class) {
-            v = JSR310Utils.instantToValue((Instant) x);
+            return JSR310Utils.instantToValue((Instant) x);
         } else if (clazz == OffsetTime.class) {
-            v = JSR310Utils.offsetTimeToValue((OffsetTime) x);
+            return JSR310Utils.offsetTimeToValue((OffsetTime) x);
         } else if (clazz == OffsetDateTime.class) {
-            v = JSR310Utils.offsetDateTimeToValue((OffsetDateTime) x);
+            return JSR310Utils.offsetDateTimeToValue((OffsetDateTime) x);
         } else if (clazz == ZonedDateTime.class) {
-            v = JSR310Utils.zonedDateTimeToValue((ZonedDateTime) x);
+            return JSR310Utils.zonedDateTimeToValue((ZonedDateTime) x);
         } else if (clazz == Interval.class) {
             Interval i = (Interval) x;
-            v = ValueInterval.from(i.getQualifier(), i.isNegative(), i.getLeading(), i.getRemaining());
+            return ValueInterval.from(i.getQualifier(), i.isNegative(), i.getLeading(), i.getRemaining());
         } else if (clazz == Period.class) {
-            v = JSR310Utils.periodToValue((Period) x);
+            return JSR310Utils.periodToValue((Period) x);
         } else if (clazz == Duration.class) {
-            v = JSR310Utils.durationToValue((Duration) x);
-        } else if (x instanceof Object[]) {
-            v = arrayToValue(session, x);
+            return JSR310Utils.durationToValue((Duration) x);
+        }
+        if (x instanceof Object[]) {
+            return arrayToValue(session, x);
         } else if (GEOMETRY_CLASS != null && GEOMETRY_CLASS.isAssignableFrom(clazz)) {
-            v = ValueGeometry.getFromGeometry(x);
+            return ValueGeometry.getFromGeometry(x);
         } else if (x instanceof BigInteger) {
-            v = ValueNumeric.get((BigInteger) x);
+            return ValueNumeric.get((BigInteger) x);
         } else if (x instanceof BigDecimal) {
-            v = ValueNumeric.getAnyScale((BigDecimal) x);
+            return ValueNumeric.getAnyScale((BigDecimal) x);
         } else {
-            v = otherToValue(session, x);
+            return otherToValue(session, x);
         }
-        if (type == Value.JSON) {
-            v = Format.applyJSON(v);
-        }
-        return v;
     }
 
     private static Value otherToValue(Session session, Object x) {

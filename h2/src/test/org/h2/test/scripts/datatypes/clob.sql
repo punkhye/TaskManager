@@ -1,4 +1,4 @@
--- Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -25,7 +25,7 @@ DROP TABLE TEST;
 CREATE TABLE TEST(C0 CLOB(10), C1 CLOB(10K), C2 CLOB(10M CHARACTERS), C3 CLOB(10G OCTETS), C4 CLOB(10T), C5 CLOB(10P));
 > ok
 
-SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS
+SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = 'TEST' ORDER BY ORDINAL_POSITION;
 > COLUMN_NAME DATA_TYPE              CHARACTER_MAXIMUM_LENGTH
 > ----------- ---------------------- ------------------------

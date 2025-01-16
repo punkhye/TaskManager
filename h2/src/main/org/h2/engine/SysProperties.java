@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -55,6 +55,13 @@ public class SysProperties {
      */
     public static final String ALLOWED_CLASSES =
             Utils.getProperty("h2.allowedClasses", "*");
+
+    /**
+     * System property <code>h2.enableAnonymousTLS</code> (default: true).
+     * When using TLS connection, the anonymous cipher suites should be enabled.
+     */
+    public static final boolean ENABLE_ANONYMOUS_TLS =
+            Utils.getProperty("h2.enableAnonymousTLS", true);
 
     /**
      * System property <code>h2.bindAddress</code> (default: null).

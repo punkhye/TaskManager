@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -60,6 +60,7 @@ import org.h2.tools.SimpleResultSet;
 import org.h2.tools.SimpleResultSet.SimpleArray;
 import org.h2.util.JdbcUtils;
 import org.h2.util.Task;
+import org.h2.util.Utils10;
 import org.h2.value.ValueUuid;
 
 /**
@@ -706,7 +707,7 @@ public class TestTools extends TestDb {
         }
         assertEquals(exitCode, result);
         ps.flush();
-        return buff.toString(StandardCharsets.UTF_8);
+        return Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
     }
 
     private void shutdownServers() {
@@ -978,7 +979,7 @@ public class TestTools extends TestDb {
         tool.setOut(new PrintStream(buff, false, "UTF-8"));
         tool.runTool("-url", url, "-user", user, "-password", password,
                 "-script", fileName + ".txt", "-showResults");
-        assertContains(buff.toString(StandardCharsets.UTF_8), "Hello");
+        assertContains(Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8), "Hello");
 
 
         // test parsing of BLOCKSIZE option

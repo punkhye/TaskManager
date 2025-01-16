@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -571,12 +571,13 @@ public final class Database implements DataHandler, CastDataProvider {
         data.temporary = false;
         data.persistData = persistent;
         data.persistIndexes = persistent;
+        data.isHidden = true;
         data.session = systemSession;
         return data;
     }
 
     private void executeMeta() {
-        Cursor cursor = metaIdIndex.find(systemSession, null, null, false);
+        Cursor cursor = metaIdIndex.find(systemSession, null, null);
         ArrayList<MetaRecord> firstRecords = new ArrayList<>(), domainRecords = new ArrayList<>(),
                 middleRecords = new ArrayList<>(), constraintRecords = new ArrayList<>(),
                 lastRecords = new ArrayList<>();
@@ -729,7 +730,7 @@ public final class Database implements DataHandler, CastDataProvider {
                 if (SysProperties.CHECK) {
                     verifyMetaLocked(session);
                 }
-                Cursor cursor = metaIdIndex.find(session, r, r, false);
+                Cursor cursor = metaIdIndex.find(session, r, r);
                 if (!cursor.next()) {
                     meta.addRow(session, r);
                 } else {
@@ -838,7 +839,7 @@ public final class Database implements DataHandler, CastDataProvider {
             r.setValue(0, ValueInteger.get(id));
             boolean wasLocked = lockMeta(session);
             try {
-                Cursor cursor = metaIdIndex.find(session, r, r, false);
+                Cursor cursor = metaIdIndex.find(session, r, r);
                 if (cursor.next()) {
                     Row found = cursor.get();
                     meta.removeRow(session, found);
@@ -1319,7 +1320,7 @@ public final class Database implements DataHandler, CastDataProvider {
     private void checkMetaFree(SessionLocal session, int id) {
         SearchRow r = meta.getRowFactory().createRow();
         r.setValue(0, ValueInteger.get(id));
-        Cursor cursor = metaIdIndex.find(session, r, r, false);
+        Cursor cursor = metaIdIndex.find(session, r, r);
         if (cursor.next()) {
             throw DbException.getInternalError();
         }
@@ -2226,7 +2227,7 @@ public final class Database implements DataHandler, CastDataProvider {
     public Table getFirstUserTable() {
         for (Schema schema : schemas.values()) {
             for (Table table : schema.getAllTablesAndViews(null)) {
-                if (table.getCreateSQL() == null) {
+                if (table.getCreateSQL() == null || table.isHidden()) {
                     continue;
                 }
                 // exclude the LOB_MAP that the Recover tool creates

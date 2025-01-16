@@ -1,14 +1,10 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util.geometry;
 
-import static org.h2.util.Bits.DOUBLE_VH_BE;
-import static org.h2.util.Bits.DOUBLE_VH_LE;
-import static org.h2.util.Bits.INT_VH_BE;
-import static org.h2.util.Bits.INT_VH_LE;
 import static org.h2.util.geometry.GeometryUtils.DIMENSION_SYSTEM_XYM;
 import static org.h2.util.geometry.GeometryUtils.DIMENSION_SYSTEM_XYZ;
 import static org.h2.util.geometry.GeometryUtils.DIMENSION_SYSTEM_XYZM;
@@ -28,6 +24,7 @@ import static org.h2.util.geometry.GeometryUtils.toCanonicalDouble;
 
 import java.io.ByteArrayOutputStream;
 
+import org.h2.util.Bits;
 import org.h2.util.StringUtils;
 import org.h2.util.geometry.GeometryUtils.Target;
 
@@ -168,13 +165,13 @@ public final class EWKBUtils {
         }
 
         private void writeInt(int v) {
-            INT_VH_BE.set(buf, 0, v);
+            Bits.writeInt(buf, 0, v);
             output.write(buf, 0, 4);
         }
 
         private void writeDouble(double v) {
             v = toCanonicalDouble(v);
-            DOUBLE_VH_BE.set(buf, 0, v);
+            Bits.writeDouble(buf, 0, v);
             output.write(buf, 0, 8);
         }
 
@@ -218,7 +215,7 @@ public final class EWKBUtils {
          * @return next 32-bit integer
          */
         int readInt() {
-            int result = bigEndian ? (int) INT_VH_BE.get(ewkb, offset) : (int) INT_VH_LE.get(ewkb, offset);
+            int result = bigEndian ? Bits.readInt(ewkb, offset) : Bits.readIntLE(ewkb, offset);
             offset += 4;
             return result;
         }
@@ -229,7 +226,7 @@ public final class EWKBUtils {
          * @return next 64-bit floating point
          */
         double readCoordinate() {
-            double v = bigEndian ? (double) DOUBLE_VH_BE.get(ewkb, offset) : (double) DOUBLE_VH_LE.get(ewkb, offset);
+            double v = bigEndian ? Bits.readDouble(ewkb, offset) : Bits.readDoubleLE(ewkb, offset);
             offset += 8;
             return toCanonicalDouble(v);
         }
@@ -531,31 +528,31 @@ public final class EWKBUtils {
         if (minX == maxX && minY == maxY) {
             result = new byte[21];
             result[4] = POINT;
-            DOUBLE_VH_BE.set(result, 5, minX);
-            DOUBLE_VH_BE.set(result, 13, minY);
+            Bits.writeDouble(result, 5, minX);
+            Bits.writeDouble(result, 13, minY);
         } else if (minX == maxX || minY == maxY) {
             result = new byte[41];
             result[4] = LINE_STRING;
             result[8] = 2;
-            DOUBLE_VH_BE.set(result, 9, minX);
-            DOUBLE_VH_BE.set(result, 17, minY);
-            DOUBLE_VH_BE.set(result, 25, maxX);
-            DOUBLE_VH_BE.set(result, 33, maxY);
+            Bits.writeDouble(result, 9, minX);
+            Bits.writeDouble(result, 17, minY);
+            Bits.writeDouble(result, 25, maxX);
+            Bits.writeDouble(result, 33, maxY);
         } else {
             result = new byte[93];
             result[4] = POLYGON;
             result[8] = 1;
             result[12] = 5;
-            DOUBLE_VH_BE.set(result, 13, minX);
-            DOUBLE_VH_BE.set(result, 21, minY);
-            DOUBLE_VH_BE.set(result, 29, minX);
-            DOUBLE_VH_BE.set(result, 37, maxY);
-            DOUBLE_VH_BE.set(result, 45, maxX);
-            DOUBLE_VH_BE.set(result, 53, maxY);
-            DOUBLE_VH_BE.set(result, 61, maxX);
-            DOUBLE_VH_BE.set(result, 69, minY);
-            DOUBLE_VH_BE.set(result, 77, minX);
-            DOUBLE_VH_BE.set(result, 85, minY);
+            Bits.writeDouble(result, 13, minX);
+            Bits.writeDouble(result, 21, minY);
+            Bits.writeDouble(result, 29, minX);
+            Bits.writeDouble(result, 37, maxY);
+            Bits.writeDouble(result, 45, maxX);
+            Bits.writeDouble(result, 53, maxY);
+            Bits.writeDouble(result, 61, maxX);
+            Bits.writeDouble(result, 69, minY);
+            Bits.writeDouble(result, 77, minX);
+            Bits.writeDouble(result, 85, minY);
         }
         return result;
     }

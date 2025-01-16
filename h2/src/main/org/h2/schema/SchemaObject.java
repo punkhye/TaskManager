@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -45,6 +45,16 @@ public abstract class SchemaObject extends DbObject {
     public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         schema.getSQL(builder, sqlFlags).append('.');
         return super.getSQL(builder, sqlFlags);
+    }
+
+    /**
+     * Check whether this is a hidden object that doesn't appear in the meta
+     * data and in the script, and is not dropped on DROP ALL OBJECTS.
+     *
+     * @return true if it is hidden
+     */
+    public boolean isHidden() {
+        return false;
     }
 
 }

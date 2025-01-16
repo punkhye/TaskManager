@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -123,7 +123,7 @@ MVStore:
 /**
  * A persistent storage for maps.
  */
-public final class MVStore implements AutoCloseable {
+public class MVStore implements AutoCloseable {
 
     /**
      * Store is open.
@@ -1265,8 +1265,8 @@ public final class MVStore implements AutoCloseable {
                 fileStore.isRegularMap(map)) {
             saveNeeded = false;
             // check again, because it could have been written by now
-            if (needStore()) {
-                // if unsaved memory creation rate is too high,
+            if (autoCommitMemory > 0 && needStore()) {
+                // if unsaved memory creation rate is to high,
                 // some back pressure need to be applied
                 // to slow things down and avoid OOME
                 if (requireStore() && !map.isSingleWriter()) {

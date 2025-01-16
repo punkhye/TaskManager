@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -55,13 +55,15 @@ public class CheckJavadoc {
                 }
             }
             if (foundJava && !foundPackageHtml) {
-                System.out.println("No package-info.java file, but a Java file found at: " + file.toAbsolutePath());
+                System.out.println("No package.html file, but a Java file found at: " + file.toAbsolutePath());
                 errorCount++;
             }
         } else {
             if (name.endsWith(".java")) {
                 checkJavadoc(file);
-                return name.equals("package-info.java") ? 2 : 1;
+                return 1;
+            } else if (name.equals("package.html")) {
+                return 2;
             }
         }
         return 0;

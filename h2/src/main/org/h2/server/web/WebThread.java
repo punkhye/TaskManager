@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -250,8 +250,7 @@ class WebThread extends WebApp implements Runnable {
             writeSimple("HTTP/1.1 400 Bad Request", "Bad request");
             return false;
         }
-        int index = host.lastIndexOf(':');
-
+        int index = host.indexOf(':');
         if (index >= 0) {
             host = host.substring(0, index);
         }
@@ -259,10 +258,7 @@ class WebThread extends WebApp implements Runnable {
             return false;
         }
         host = StringUtils.toLowerEnglish(host);
-        if (host.equals(server.getHost()) ||
-                host.equals("localhost") ||
-                host.equals("127.0.0.1") ||
-                host.equals("[::1]")) {
+        if (host.equals(server.getHost()) || host.equals("localhost") || host.equals("127.0.0.1")) {
             return true;
         }
         String externalNames = server.getExternalNames();

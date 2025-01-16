@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -55,7 +55,7 @@ public class AlterTableDropConstraint extends AlterTable {
             if (refTable != table) {
                 session.getUser().checkTableRight(refTable, Right.SCHEMA_OWNER);
             }
-            if (constraintType.isUnique()) {
+            if (constraintType == Type.PRIMARY_KEY || constraintType == Type.UNIQUE) {
                 for (Constraint c : constraint.getTable().getConstraints()) {
                     if (c.getReferencedConstraint() == constraint) {
                         if (dropAction == ConstraintActionType.RESTRICT) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -266,11 +266,11 @@ public class Profiler implements Runnable {
             copyInThread(p.getInputStream(), out);
             copyInThread(p.getErrorStream(), err);
             p.waitFor();
-            String e = err.toString(StandardCharsets.UTF_8);
+            String e = Utils10.byteArrayOutputStreamToString(err, StandardCharsets.UTF_8);
             if (e.length() > 0) {
                 throw new RuntimeException(e);
             }
-            return out.toString(StandardCharsets.UTF_8);
+            return Utils10.byteArrayOutputStreamToString(out, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

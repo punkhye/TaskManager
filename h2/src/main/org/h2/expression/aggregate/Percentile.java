@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -157,7 +157,7 @@ final class Percentile {
         if (count == 0) {
             return ValueNull.INSTANCE;
         }
-        Cursor cursor = index.find(session, null, null, false);
+        Cursor cursor = index.find(session, null, null);
         cursor.next();
         int columnId = index.getColumns()[0].getColumnId();
         ExpressionColumn expr = (ExpressionColumn) expression;
@@ -188,7 +188,7 @@ final class Percentile {
                 TableFilter tableFilter = expr.getTableFilter();
                 SearchRow check = tableFilter.getTable().getTemplateSimpleRow(true);
                 check.setValue(columnId, ValueNull.INSTANCE);
-                Cursor nullsCursor = index.find(session, check, check, false);
+                Cursor nullsCursor = index.find(session, check, check);
                 while (nullsCursor.next()) {
                     count--;
                 }

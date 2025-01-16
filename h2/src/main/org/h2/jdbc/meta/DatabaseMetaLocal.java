@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -447,7 +447,10 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
             for (SchemaObject object : getTablesForPattern(schema, tableNamePattern)) {
                 Value tableName = getString(object.getName());
                 if (object instanceof Table) {
-                    getTablesAdd(result, catalogValue, schemaValue, tableName, (Table) object, false, typesSet);
+                    Table t = (Table) object;
+                    if (!t.isHidden()) {
+                        getTablesAdd(result, catalogValue, schemaValue, tableName, t, false, typesSet);
+                    }
                 } else {
                     getTablesAdd(result, catalogValue, schemaValue, tableName, ((TableSynonym) object).getSynonymFor(),
                             true, typesSet);
@@ -554,7 +557,10 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
             for (SchemaObject object : getTablesForPattern(schema, tableNamePattern)) {
                 Value tableName = getString(object.getName());
                 if (object instanceof Table) {
-                    getColumnsAdd(result, catalogValue, schemaValue, tableName, (Table) object, columnLike);
+                    Table t = (Table) object;
+                    if (!t.isHidden()) {
+                        getColumnsAdd(result, catalogValue, schemaValue, tableName, t, columnLike);
+                    }
                 } else {
                     TableSynonym s = (TableSynonym) object;
                     Table t = s.getSynonymFor();
@@ -661,6 +667,9 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
                 continue;
             }
             Table t = (Table) object;
+            if (t.isHidden()) {
+                continue;
+            }
             String tableName = t.getName();
             if (!db.equalsIdentifiers(table, tableName)) {
                 continue;
@@ -701,6 +710,9 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
                 continue;
             }
             Table table = (Table) object;
+            if (table.isHidden()) {
+                continue;
+            }
             String tableName = table.getName();
             if (tableLike != null && !tableLike.test(tableName)) {
                 continue;
@@ -815,7 +827,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
         }
         for (Schema s : getSchemas(schema)) {
             Table t = s.findTableOrView(session, table);
-            if (t == null) {
+            if (t == null || t.isHidden()) {
                 continue;
             }
             ArrayList<Constraint> constraints = t.getConstraints();
@@ -881,7 +893,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
         Value catalogValue = getString(db.getShortName());
         for (Schema s : getSchemas(schema)) {
             Table t = s.findTableOrView(session, table);
-            if (t == null) {
+            if (t == null || t.isHidden()) {
                 continue;
             }
             ArrayList<Constraint> constraints = t.getConstraints();
@@ -931,7 +943,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
         Value catalogValue = getString(db.getShortName());
         for (Schema s : getSchemas(schema)) {
             Table t = s.findTableOrView(session, table);
-            if (t == null) {
+            if (t == null || t.isHidden()) {
                 continue;
             }
             ArrayList<Constraint> constraints = t.getConstraints();
@@ -970,7 +982,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
         Value catalogValue = getString(db.getShortName());
         for (Schema s : getSchemas(schema)) {
             Table t = s.findTableOrView(session, table);
-            if (t == null) {
+            if (t == null || t.isHidden()) {
                 continue;
             }
             ArrayList<Constraint> constraints = t.getConstraints();
@@ -1013,7 +1025,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
         Value catalogValue = getString(db.getShortName());
         for (Schema s : getSchemas(foreignSchema)) {
             Table t = s.findTableOrView(session, foreignTable);
-            if (t == null) {
+            if (t == null || t.isHidden()) {
                 continue;
             }
             ArrayList<Constraint> constraints = t.getConstraints();
@@ -1230,7 +1242,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
         Value catalogValue = getString(db.getShortName());
         for (Schema s : getSchemas(schema)) {
             Table t = s.findTableOrView(session, table);
-            if (t == null) {
+            if (t == null || t.isHidden()) {
                 continue;
             }
             getIndexInfo(catalogValue, getString(s.getName()), t, unique, approximate, result, db);
@@ -1288,7 +1300,7 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
                                     ? index.getRowCountApproximation(session)
                                     : index.getRowCount(session)),
                             // PAGES
-                            ValueBigint.get(index.getDiskSpaceUsed(approximate) / db.getPageSize()),
+                            ValueBigint.get(index.getDiskSpaceUsed() / db.getPageSize()),
                             // FILTER_CONDITION
                             ValueNull.INSTANCE);
                 }
@@ -1340,7 +1352,10 @@ public final class DatabaseMetaLocal extends DatabaseMetaLocalBase {
             for (SchemaObject object : getTablesForPattern(schema, tableNamePattern)) {
                 Value tableName = getString(object.getName());
                 if (object instanceof Table) {
-                    getPseudoColumnsAdd(result, catalogValue, schemaValue, tableName, (Table) object, columnLike);
+                    Table t = (Table) object;
+                    if (!t.isHidden()) {
+                        getPseudoColumnsAdd(result, catalogValue, schemaValue, tableName, t, columnLike);
+                    }
                 } else {
                     TableSynonym s = (TableSynonym) object;
                     Table t = s.getSynonymFor();

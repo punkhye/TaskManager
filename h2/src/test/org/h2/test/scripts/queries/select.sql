@@ -1,4 +1,4 @@
--- Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -1167,7 +1167,7 @@ SELECT A, 1 AS X, B FROM TEST ORDER BY A, X, B DESC;
 > rows (ordered): 4
 
 EXPLAIN SELECT A, 1 AS X, B FROM TEST ORDER BY A, X, B DESC;
->> SELECT "A", 1 AS "X", "B" FROM "PUBLIC"."TEST" /* PUBLIC.TEST_IDX */ ORDER BY 1, 2, 3 DESC /* index sorted: 1 of 3 columns */
+>> SELECT "A", 1 AS "X", "B" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ ORDER BY 1, 2, 3 DESC
 
 DROP TABLE TEST;
 > ok
@@ -1210,82 +1210,4 @@ where -1 is distinct from -1 or 2 is distinct from x0;
 > rows: 0
 
 drop table test;
-> ok
-
-SELECT X, FROM (VALUES 1) T(X);
-> exception SYNTAX_ERROR_2
-
-CREATE TABLE TEST(A INT, B INT, C INT);
-> ok
-
-INSERT INTO TEST SELECT 1, X, X FROM SYSTEM_RANGE(1, 10);
-> update count: 10
-
-CREATE INDEX I1 ON TEST(A, B);
-> ok
-
-CREATE INDEX I2 ON TEST(A, C);
-> ok
-
-EXPLAIN SELECT * FROM TEST WHERE A = 1 AND B = 1 ORDER BY A, B, C;
->> SELECT "PUBLIC"."TEST"."A", "PUBLIC"."TEST"."B", "PUBLIC"."TEST"."C" FROM "PUBLIC"."TEST" /* PUBLIC.I1: A = 1 AND B = 1 */ WHERE ("A" = 1) AND ("B" = 1) ORDER BY 1, 2, 3 /* index sorted: 2 of 3 columns */
-
-DROP TABLE TEST;
-> ok
-
-CREATE TABLE TEST(A INT, B INT);
-> ok
-
-CREATE INDEX IA ON TEST(A);
-> ok
-
-INSERT INTO TEST VALUES (1, 2), (1, 1), (2, 3), (2, 3);
-> update count: 4
-
-EXPLAIN SELECT * FROM TEST ORDER BY A, B OFFSET 1 ROW FETCH NEXT 1 ROW WITH TIES;
->> SELECT "PUBLIC"."TEST"."A", "PUBLIC"."TEST"."B" FROM "PUBLIC"."TEST" /* PUBLIC.IA */ ORDER BY 1, 2 OFFSET 1 ROW FETCH NEXT ROW WITH TIES /* index sorted: 1 of 2 columns */
-
-SELECT * FROM TEST ORDER BY A, B OFFSET 1 ROW FETCH NEXT 1 ROW WITH TIES;
-> A B
-> - -
-> 1 2
-> rows (ordered): 1
-
-SELECT * FROM TEST ORDER BY A, B OFFSET 2 ROWS FETCH NEXT 1 ROW WITH TIES;
-> A B
-> - -
-> 2 3
-> 2 3
-> rows (ordered): 2
-
-DROP TABLE TEST;
-> ok
-
-CREATE TABLE TEST(A INT);
-> ok
-
-CREATE INDEX TEST_A_IDX ON TEST(A);
-> ok
-
-INSERT INTO TEST VALUES 1, 2, 1, 2, 5;
-> update count: 5
-
-SELECT * FROM TEST WHERE A <= 2 ORDER BY A;
-> A
-> -
-> 1
-> 1
-> 2
-> 2
-> rows (ordered): 4
-
-SELECT * FROM TEST WHERE A >= 2 ORDER BY A DESC;
-> A
-> -
-> 5
-> 2
-> 2
-> rows (ordered): 3
-
-DROP TABLE TEST;
 > ok

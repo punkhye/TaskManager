@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -137,6 +137,7 @@ public class MVTable extends TableBase {
 
     public MVTable(CreateTableData data, Store store) {
         super(data);
+        this.isHidden = data.isHidden;
         boolean b = false;
         for (Column col : getColumns()) {
             if (DataType.isLargeObject(col.getType().getValueType())) {
@@ -366,7 +367,7 @@ public class MVTable extends TableBase {
             rebuildIndex(session, index, indexName);
         }
         index.setTemporary(isTemporary());
-        if (getId() != 0 && index.getCreateSQL() != null) {
+        if (index.getCreateSQL() != null) {
             index.setComment(indexComment);
             if (isSessionTemporary) {
                 session.addLocalTempTableIndex(index);
@@ -413,7 +414,7 @@ public class MVTable extends TableBase {
         Index scan = getScanIndex(session);
         long remaining = scan.getRowCount(session);
         long total = remaining;
-        Cursor cursor = scan.find(session, null, null, false);
+        Cursor cursor = scan.find(session, null, null);
         long i = 0;
         Store store = session.getDatabase().getStore();
 
@@ -453,7 +454,7 @@ public class MVTable extends TableBase {
         Index scan = getScanIndex(session);
         long remaining = scan.getRowCount(session);
         long total = remaining;
-        Cursor cursor = scan.find(session, null, null, false);
+        Cursor cursor = scan.find(session, null, null);
         long i = 0;
         int bufferSize = (int) Math.min(total, database.getMaxMemoryRows());
         ArrayList<Row> buffer = new ArrayList<>(bufferSize);
@@ -475,6 +476,7 @@ public class MVTable extends TableBase {
 
     @Override
     public void removeRow(SessionLocal session, Row row) {
+        syncLastModificationIdWithDatabase();
         Transaction t = session.getTransaction();
         long savepoint = t.setSavepoint();
         try {
@@ -490,18 +492,17 @@ public class MVTable extends TableBase {
             }
             throw DbException.convert(e);
         }
-        syncLastModificationIdWithDatabase();
         analyzeIfRequired(session);
     }
 
     @Override
     public long truncate(SessionLocal session) {
+        syncLastModificationIdWithDatabase();
         long result = getRowCountApproximation(session);
         for (int i = indexes.size() - 1; i >= 0; i--) {
             Index index = indexes.get(i);
             index.truncate(session);
         }
-        syncLastModificationIdWithDatabase();
         if (changesUntilAnalyze != null) {
             changesUntilAnalyze.set(nextAnalyze);
         }
@@ -510,6 +511,7 @@ public class MVTable extends TableBase {
 
     @Override
     public void addRow(SessionLocal session, Row row) {
+        syncLastModificationIdWithDatabase();
         Transaction t = session.getTransaction();
         long savepoint = t.setSavepoint();
         try {
@@ -524,13 +526,13 @@ public class MVTable extends TableBase {
             }
             throw DbException.convert(e);
         }
-        syncLastModificationIdWithDatabase();
         analyzeIfRequired(session);
     }
 
     @Override
     public void updateRow(SessionLocal session, Row oldRow, Row newRow) {
         newRow.setKey(oldRow.getKey());
+        syncLastModificationIdWithDatabase();
         Transaction t = session.getTransaction();
         long savepoint = t.setSavepoint();
         try {
@@ -545,7 +547,6 @@ public class MVTable extends TableBase {
             }
             throw DbException.convert(e);
         }
-        syncLastModificationIdWithDatabase();
         analyzeIfRequired(session);
     }
 
@@ -622,18 +623,8 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public long getDiskSpaceUsed(boolean total, boolean approximate) {
-        if (total) {
-            long size = 0L;
-            for (Index index : getIndexes()) {
-                if (!(index instanceof MVDelegateIndex)) {
-                    size += index.getDiskSpaceUsed(approximate);
-                }
-            }
-            return size;
-        } else {
-            return primaryIndex.getDiskSpaceUsed(approximate);
-        }
+    public long getDiskSpaceUsed() {
+        return primaryIndex.getDiskSpaceUsed();
     }
 
     /**
@@ -652,10 +643,10 @@ public class MVTable extends TableBase {
     }
 
     /**
-     * Called after commit to increment database data modification counter for
-     * this table.
+     * Mark the transaction as committed, so that the modification counter of
+     * the database is incremented.
      */
-    public void afterCommit() {
+    public void commit() {
         if (database != null) {
             syncLastModificationIdWithDatabase();
         }

@@ -1,12 +1,12 @@
 package Frames;
 
+import DBConnection.DBConnection;
+
 import javax.swing.*;
 import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-
-import DBConnection.DBConnection;
 
 import static Frames.MainFrame.loggedUser;
 

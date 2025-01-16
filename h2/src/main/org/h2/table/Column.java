@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
 import java.sql.ResultSetMetaData;
-import java.util.Arrays;
 import java.util.Objects;
 
 import org.h2.api.ErrorCode;
@@ -26,12 +25,10 @@ import org.h2.schema.Sequence;
 import org.h2.util.HasSQL;
 import org.h2.util.ParserUtil;
 import org.h2.util.StringUtils;
-import org.h2.value.ExtTypeInfoRow;
 import org.h2.value.TypeInfo;
 import org.h2.value.Typed;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
-import org.h2.value.ValueRow;
 import org.h2.value.ValueUuid;
 
 /**
@@ -188,40 +185,6 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
             }
             throw e;
         }
-    }
-
-
-    /**
-     * Converts the values in a ValueRow based on the passed column info.
-     * Creates a new instance if any of the contained item must be converted.
-     * Otherwise, returns the same {@code valueRow}.
-     *
-     * @param provider
-     *            the cast information provider
-     * @param columns
-     *            the column info list used for the conversation
-     * @param valueRow
-     *            the holder of the values
-     * @return a ValueRow which contains the converted values
-     *
-     * @see Column#convert(CastDataProvider, Value)
-     */
-    public static ValueRow convert(CastDataProvider provider, Column[] columns, ValueRow valueRow) {
-        Value[] copy = null;
-        Value[] values = valueRow.getList();
-        for (int i = values.length; --i >= 0; ) {
-            Value v = values[i];
-            Value nv = columns[i].convert(provider, v);
-            if (v != nv) {
-                if (copy == null)
-                    copy = Arrays.copyOf(values, values.length);
-                copy[i] = nv;
-            }
-        }
-        if (copy == null)
-            return valueRow;
-        TypeInfo typeInfo = TypeInfo.getTypeInfo(Value.ROW, 0, 0, new ExtTypeInfoRow(columns));
-        return ValueRow.get(typeInfo, copy);
     }
 
     /**
@@ -451,31 +414,25 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
     }
 
     private void updateSequenceIfRequired(SessionLocal session, long value) {
-        /*
-         * Synchronization is necessary due to possible race with concurrent
-         * sessions
-         */
-        synchronized (sequence) {
-            if (sequence.getCycle() == Sequence.Cycle.EXHAUSTED) {
+        if (sequence.getCycle() == Sequence.Cycle.EXHAUSTED) {
+            return;
+        }
+        long current = sequence.getCurrentValue();
+        long inc = sequence.getIncrement();
+        if (inc > 0) {
+            if (value < current) {
                 return;
             }
-            long current = sequence.getCurrentValue();
-            long inc = sequence.getIncrement();
-            if (inc > 0) {
-                if (value <= current) {
-                    return;
-                }
-            } else if (value >= current) {
+        } else if (value > current) {
+            return;
+        }
+        try {
+            sequence.modify(value + inc, null, null, null, null, null, null);
+        } catch (DbException ex) {
+            if (ex.getErrorCode() == ErrorCode.SEQUENCE_ATTRIBUTES_INVALID_7) {
                 return;
             }
-            try {
-                sequence.modify(value + inc, null, null, null, null, null, null);
-            } catch (DbException ex) {
-                if (ex.getErrorCode() == ErrorCode.SEQUENCE_ATTRIBUTES_INVALID_7) {
-                    return;
-                }
-                throw ex;
-            }
+            throw ex;
         }
         sequence.flush(session);
     }
@@ -496,7 +453,7 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
         String sequenceName;
         do {
             sequenceName = "SYSTEM_SEQUENCE_"
-                    + StringUtils.toUpperEnglish(ValueUuid.getNewRandom(4).getString().replace('-', '_'));
+                    + StringUtils.toUpperEnglish(ValueUuid.getNewRandom().getString().replace('-', '_'));
         } while (schema.findSequence(sequenceName) != null);
         identityOptions.setDataType(type);
         Sequence seq = new Sequence(session, schema, id, sequenceName, identityOptions, true);

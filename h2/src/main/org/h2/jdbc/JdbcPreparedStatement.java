@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -22,11 +22,10 @@ import java.sql.RowId;
 import java.sql.SQLException;
 import java.sql.SQLType;
 import java.sql.SQLXML;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
@@ -34,7 +33,7 @@ import org.h2.engine.Session;
 import org.h2.expression.ParameterInterface;
 import org.h2.message.DbException;
 import org.h2.message.TraceObject;
-import org.h2.result.BatchResult;
+import org.h2.result.MergedResult;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultWithGeneratedKeys;
 import org.h2.util.IOUtils;
@@ -82,6 +81,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
     protected CommandInterface command;
     private ArrayList<Value[]> batchParameters;
+    private MergedResult batchIdentities;
     private HashMap<String, Integer> cachedColumnLabelMap;
     private final Object generatedKeysRequest;
 
@@ -116,6 +116,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         try {
             int id = getNextId(TraceObject.RESULT_SET);
             debugCodeAssign("ResultSet", TraceObject.RESULT_SET, id, "executeQuery()");
+            batchIdentities = null;
             final Session session = this.session;
             session.lock();
             try {
@@ -169,6 +170,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         try {
             debugCodeCall("executeUpdate");
             checkClosed();
+            batchIdentities = null;
             long updateCount = executeUpdateInternal();
             return updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
         } catch (Exception e) {
@@ -197,6 +199,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         try {
             debugCodeCall("executeLargeUpdate");
             checkClosed();
+            batchIdentities = null;
             return executeUpdateInternal();
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -1239,6 +1242,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         try {
             super.close();
             batchParameters = null;
+            batchIdentities = null;
             if (command != null) {
                 command.close();
                 command = null;
@@ -1259,24 +1263,25 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     public int[] executeBatch() throws SQLException {
         try {
             debugCodeCall("executeBatch");
-            checkClosed();
-            closeOldResultSet();
             if (batchParameters == null) {
-                return new int[0];
+                // Empty batch is allowed, see JDK-4639504 and other issues
+                batchParameters = new ArrayList<>();
             }
-            BatchResult batchResult = executeBatchInternal();
-            long[] longResult = batchResult.getUpdateCounts();
-            int size = longResult.length;
-            int[] intResult = new int[size];
+            batchIdentities = new MergedResult();
+            int size = batchParameters.size();
+            int[] result = new int[size];
+            SQLException exception = new SQLException();
+            checkClosed();
             for (int i = 0; i < size; i++) {
-                long updateCount = longResult[i];
-                intResult[i] = updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
+                long updateCount = executeBatchElement(batchParameters.get(i), exception);
+                result[i] = updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
             }
-            List<SQLException> exceptions = batchResult.getExceptions();
-            if (!exceptions.isEmpty()) {
-                throw new JdbcBatchUpdateException(createBatchException(exceptions), intResult);
+            batchParameters = null;
+            exception = exception.getNextException();
+            if (exception != null) {
+                throw new JdbcBatchUpdateException(exception, result);
             }
-            return intResult;
+            return result;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1292,16 +1297,22 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     public long[] executeLargeBatch() throws SQLException {
         try {
             debugCodeCall("executeLargeBatch");
-            checkClosed();
-            closeOldResultSet();
             if (batchParameters == null) {
-                return new long[0];
+                // Empty batch is allowed, see JDK-4639504 and other issues
+                batchParameters = new ArrayList<>();
             }
-            BatchResult batchResult = executeBatchInternal();
-            long[] result = batchResult.getUpdateCounts();
-            List<SQLException> exceptions = batchResult.getExceptions();
-            if (!exceptions.isEmpty()) {
-                throw new JdbcBatchUpdateException(createBatchException(exceptions), result);
+            batchIdentities = new MergedResult();
+            int size = batchParameters.size();
+            long[] result = new long[size];
+            SQLException exception = new SQLException();
+            checkClosed();
+            for (int i = 0; i < size; i++) {
+                result[i] = executeBatchElement(batchParameters.get(i), exception);
+            }
+            batchParameters = null;
+            exception = exception.getNextException();
+            if (exception != null) {
+                throw new JdbcBatchUpdateException(exception, result);
             }
             return result;
         } catch (Exception e) {
@@ -1309,37 +1320,38 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         }
     }
 
-    private BatchResult executeBatchInternal() {
-        final Session session = this.session;
-        session.lock();
-        try {
-            try {
-                setExecutingStatement(command);
-                BatchResult result = command.executeBatchUpdate(batchParameters, generatedKeysRequest);
-                ResultInterface gk = result.getGeneratedKeys();
-                if (gk != null) {
-                    int id = getNextId(TraceObject.RESULT_SET);
-                    generatedKeys = new JdbcResultSet(conn, this, command, gk, id, true, false, false);
-                }
-                batchParameters = null;
-                return result;
-            } finally {
-                setExecutingStatement(null);
-            }
-        } finally {
-            session.unlock();
+    private long executeBatchElement(Value[] set, SQLException exception) {
+        ArrayList<? extends ParameterInterface> parameters = command.getParameters();
+        for (int i = 0, l = set.length; i < l; i++) {
+            parameters.get(i).setValue(set[i], false);
         }
+        long updateCount;
+        try {
+            updateCount = executeUpdateInternal();
+            // Cannot use own implementation, it returns batch identities
+            ResultSet rs = super.getGeneratedKeys();
+            batchIdentities.add(((JdbcResultSet) rs).result);
+        } catch (Exception e) {
+            exception.setNextException(logAndConvert(e));
+            updateCount = Statement.EXECUTE_FAILED;
+        }
+        return updateCount;
     }
 
-    private SQLException createBatchException(List<SQLException> exceptions) {
-        Iterator<SQLException> i = exceptions.iterator();
-        SQLException exception = logAndConvert(i.next()), last = exception;
-        while (i.hasNext()) {
-            SQLException next = i.next();
-            last.setNextException(next);
-            last = next;
+    @Override
+    public ResultSet getGeneratedKeys() throws SQLException {
+        if (batchIdentities != null) {
+            try {
+                int id = getNextId(TraceObject.RESULT_SET);
+                debugCodeAssign("ResultSet", TraceObject.RESULT_SET, id, "getGeneratedKeys()");
+                checkClosed();
+                generatedKeys = new JdbcResultSet(conn, this, null, batchIdentities.getResult(), id, true, false,
+                        false);
+            } catch (Exception e) {
+                throw logAndConvert(e);
+            }
         }
-        return exception;
+        return super.getGeneratedKeys();
     }
 
     /**

@@ -1,11 +1,11 @@
 package Data;
 
+import javax.swing.table.AbstractTableModel;
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import javax.swing.table.AbstractTableModel;
 
 public class TModel extends AbstractTableModel {
 

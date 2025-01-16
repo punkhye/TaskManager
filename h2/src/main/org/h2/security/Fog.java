@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.security;
 
-import static org.h2.util.Bits.INT_VH_BE;
-import static org.h2.util.Bits.LONG_VH_BE;
+import org.h2.util.Bits;
 
 /**
  * A pseudo-encryption algorithm that makes the data appear to be
@@ -32,35 +31,35 @@ public class Fog implements BlockCipher {
     }
 
     private void encryptBlock(byte[] in, byte[] out, int off) {
-        int x0 = (int) INT_VH_BE.get(in, off);
-        int x1 = (int) INT_VH_BE.get(in, off + 4);
-        int x2 = (int) INT_VH_BE.get(in, off + 8);
-        int x3 = (int) INT_VH_BE.get(in, off + 12);
+        int x0 = Bits.readInt(in, off);
+        int x1 = Bits.readInt(in, off + 4);
+        int x2 = Bits.readInt(in, off + 8);
+        int x3 = Bits.readInt(in, off + 12);
         int k = key;
         x0 = Integer.rotateLeft(x0 ^ k, x1);
         x2 = Integer.rotateLeft(x2 ^ k, x1);
         x1 = Integer.rotateLeft(x1 ^ k, x0);
         x3 = Integer.rotateLeft(x3 ^ k, x0);
-        INT_VH_BE.set(out, off, x0);
-        INT_VH_BE.set(out, off + 4, x1);
-        INT_VH_BE.set(out, off + 8, x2);
-        INT_VH_BE.set(out, off + 12, x3);
+        Bits.writeInt(out, off, x0);
+        Bits.writeInt(out, off + 4, x1);
+        Bits.writeInt(out, off + 8, x2);
+        Bits.writeInt(out, off + 12, x3);
     }
 
     private void decryptBlock(byte[] in, byte[] out, int off) {
-        int x0 = (int) INT_VH_BE.get(in, off);
-        int x1 = (int) INT_VH_BE.get(in, off + 4);
-        int x2 = (int) INT_VH_BE.get(in, off + 8);
-        int x3 = (int) INT_VH_BE.get(in, off + 12);
+        int x0 = Bits.readInt(in, off);
+        int x1 = Bits.readInt(in, off + 4);
+        int x2 = Bits.readInt(in, off + 8);
+        int x3 = Bits.readInt(in, off + 12);
         int k = key;
         x1 = Integer.rotateRight(x1, x0) ^ k;
         x3 = Integer.rotateRight(x3, x0) ^ k;
         x0 = Integer.rotateRight(x0, x1) ^ k;
         x2 = Integer.rotateRight(x2, x1) ^ k;
-        INT_VH_BE.set(out, off, x0);
-        INT_VH_BE.set(out, off + 4, x1);
-        INT_VH_BE.set(out, off + 8, x2);
-        INT_VH_BE.set(out, off + 12, x3);
+        Bits.writeInt(out, off, x0);
+        Bits.writeInt(out, off + 4, x1);
+        Bits.writeInt(out, off + 8, x2);
+        Bits.writeInt(out, off + 12, x3);
     }
 
     @Override
@@ -70,7 +69,7 @@ public class Fog implements BlockCipher {
 
     @Override
     public void setKey(byte[] key) {
-        this.key = (int) (long) LONG_VH_BE.get(key, 0);
+        this.key = (int) Bits.readLong(key, 0);
     }
 
 }

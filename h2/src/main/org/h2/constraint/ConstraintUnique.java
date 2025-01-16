@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -48,16 +48,16 @@ public class ConstraintUnique extends Constraint {
     private String getCreateSQLForCopy(Table forTable, String quotedName, boolean internalIndex) {
         StringBuilder builder = new StringBuilder("ALTER TABLE ");
         forTable.getSQL(builder, DEFAULT_SQL_FLAGS).append(" ADD CONSTRAINT ");
+        if (forTable.isHidden()) {
+            builder.append("IF NOT EXISTS ");
+        }
         builder.append(quotedName);
         if (comment != null) {
             builder.append(" COMMENT ");
             StringUtils.quoteStringSQL(builder, comment);
         }
-        builder.append(' ').append(getConstraintType().getSqlName());
-        if (!primaryKey) {
-            nullsDistinct.getSQL(builder.append(' '), DEFAULT_SQL_FLAGS).append(' ');
-        }
-        IndexColumn.writeColumns(builder.append('('), columns, DEFAULT_SQL_FLAGS).append(')');
+        builder.append(' ').append(getConstraintType().getSqlName()).append('(');
+        IndexColumn.writeColumns(builder, columns, DEFAULT_SQL_FLAGS).append(')');
         if (internalIndex && indexOwner && forTable == this.table) {
             builder.append(" INDEX ");
             index.getSQL(builder, DEFAULT_SQL_FLAGS);

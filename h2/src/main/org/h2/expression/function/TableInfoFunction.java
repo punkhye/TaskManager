@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -52,7 +52,7 @@ public final class TableInfoFunction extends Function1_2 {
         Table table = new Parser(session).parseTableName(v1.getString());
         l: switch (function) {
         case DISK_SPACE_USED:
-            v1 = ValueBigint.get(table.getDiskSpaceUsed(false, false));
+            v1 = ValueBigint.get(table.getDiskSpaceUsed());
             break;
         case ESTIMATED_ENVELOPE: {
             Column column = table.getColumn(v2.getString());

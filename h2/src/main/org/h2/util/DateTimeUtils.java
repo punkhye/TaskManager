@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0, and the
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0, and the
  * EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  * Iso8601: Initial Developer: Robert Rathsack (firstName dot lastName at gmx
@@ -187,7 +187,7 @@ public class DateTimeUtils {
                 throw new IllegalArgumentException(s);
             }
         }
-        int year = Integer.parseInt(s, start, yEnd, 10);
+        int year = Integer.parseInt(s.substring(start, yEnd));
         int month = StringUtils.parseUInt31(s, mStart, mEnd);
         int day = StringUtils.parseUInt31(s, dStart, end);
         if (!isValidDate(year, month, day)) {

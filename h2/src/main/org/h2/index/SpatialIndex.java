@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -21,12 +21,10 @@ public interface SpatialIndex {
      * @param session the session
      * @param first the lower bound
      * @param last the upper bound
-     * @param reverse if true, iterate in reverse (descending) order
      * @param intersection the geometry which values should intersect with, or
      *            null for anything
      * @return the cursor to iterate over the results
      */
-    Cursor findByGeometry(SessionLocal session, SearchRow first, SearchRow last, boolean reverse,
-            SearchRow intersection);
+    Cursor findByGeometry(SessionLocal session, SearchRow first, SearchRow last, SearchRow intersection);
 
 }

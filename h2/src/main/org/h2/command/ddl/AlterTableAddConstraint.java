@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -387,7 +387,8 @@ public class AlterTableAddConstraint extends AlterTable {
         if (constraints != null) {
             for (Constraint constraint : constraints) {
                 if (constraint.getTable() == t) {
-                    if (constraint.getConstraintType().isUnique()) {
+                    Constraint.Type constraintType = constraint.getConstraintType();
+                    if (constraintType == Constraint.Type.PRIMARY_KEY || constraintType == Constraint.Type.UNIQUE) {
                         if (canUseIndex(constraint.getIndex(), t, cols, NullsDistinct.DISTINCT)) {
                             return (ConstraintUnique) constraint;
                         }

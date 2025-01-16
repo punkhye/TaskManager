@@ -1,4 +1,4 @@
--- Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -234,7 +234,7 @@ SELECT T, ID_A <> ID_B, SQL_A, SQL_B FROM (VALUES
 )) T(T, ID_A, ID_B, SQL_A, SQL_B);
 > T          ID_A <> ID_B SQL_A                                                                                                                           SQL_B
 > ---------- ------------ ------------------------------------------------------------------------------------------------------------------------------- -------------------------------------------------------------------------------------------------------------------------------
-> CONSTRAINT TRUE         ALTER TABLE "PUBLIC"."T_A" ADD CONSTRAINT "PUBLIC"."C_A" UNIQUE NULLS DISTINCT ("ID")                                           ALTER TABLE "PUBLIC"."T_B" ADD CONSTRAINT "PUBLIC"."C_B" UNIQUE NULLS DISTINCT ("ID")
+> CONSTRAINT TRUE         ALTER TABLE "PUBLIC"."T_A" ADD CONSTRAINT "PUBLIC"."C_A" UNIQUE("ID")                                                           ALTER TABLE "PUBLIC"."T_B" ADD CONSTRAINT "PUBLIC"."C_B" UNIQUE("ID")
 > INDEX      TRUE         CREATE UNIQUE NULLS DISTINCT INDEX "PUBLIC"."I_A" ON "PUBLIC"."T_A"("ID" NULLS FIRST)                                           CREATE UNIQUE NULLS DISTINCT INDEX "PUBLIC"."I_B" ON "PUBLIC"."T_B"("ID" NULLS FIRST)
 > SYNONYM    TRUE         CREATE SYNONYM "PUBLIC"."S_A" FOR "PUBLIC"."T_A"                                                                                CREATE SYNONYM "PUBLIC"."S_B" FOR "PUBLIC"."T_B"
 > TABLE      TRUE         CREATE MEMORY TABLE "PUBLIC"."T_A"( "ID" INTEGER )                                                                              CREATE MEMORY TABLE "PUBLIC"."T_B"( "ID" INTEGER )
@@ -282,32 +282,3 @@ CALL DB_OBJECT_ID('TABLE', 'INFORMATION_SCHEMA', 'TABLES') IS NOT NULL;
 
 CALL DB_OBJECT_SQL('TABLE', 'INFORMATION_SCHEMA', 'TABLES');
 >> null
-
-CREATE TABLE T_B(V INT);
-> ok
-
-INSERT INTO T_B VALUES 1, 2;
-> update count: 2
-
-CREATE INDEX I_B ON T_B(V);
-> ok
-
-CHECKPOINT SYNC;
-> ok
-
-SELECT DB_OBJECT_TOTAL_SIZE('TABLE', 'PUBLIC', 'T_B') >= DB_OBJECT_SIZE('TABLE', 'PUBLIC', 'T_B');
->> TRUE
-
-SELECT DB_OBJECT_TOTAL_SIZE('TABLE', 'PUBLIC', 'T_B') =
-    DB_OBJECT_SIZE('TABLE', 'PUBLIC', 'T_B') + DB_OBJECT_SIZE('INDEX', 'PUBLIC', 'I_B');
->> TRUE
-
-SELECT DB_OBJECT_APPROXIMATE_TOTAL_SIZE('TABLE', 'PUBLIC', 'T_B') >= DB_OBJECT_APPROXIMATE_SIZE('TABLE', 'PUBLIC', 'T_B');
->> TRUE
-
-SELECT DB_OBJECT_APPROXIMATE_TOTAL_SIZE('TABLE', 'PUBLIC', 'T_B') =
-    DB_OBJECT_APPROXIMATE_SIZE('TABLE', 'PUBLIC', 'T_B') + DB_OBJECT_APPROXIMATE_SIZE('INDEX', 'PUBLIC', 'I_B');
->> TRUE
-
-DROP TABLE T_B;
-> ok

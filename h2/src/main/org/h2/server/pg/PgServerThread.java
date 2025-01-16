@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -49,6 +49,7 @@ import org.h2.util.ScriptReader;
 import org.h2.util.StringUtils;
 import org.h2.util.TimeZoneProvider;
 import org.h2.util.Utils;
+import org.h2.util.Utils10;
 import org.h2.value.CaseInsensitiveMap;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
@@ -158,7 +159,7 @@ public final class PgServerThread implements Runnable {
             }
             buff.write(x);
         }
-        return buff.toString(getEncoding());
+        return Utils10.byteArrayOutputStreamToString(buff, getEncoding());
     }
 
     private int readInt() throws IOException {

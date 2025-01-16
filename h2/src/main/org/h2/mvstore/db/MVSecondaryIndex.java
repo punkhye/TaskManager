@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -266,14 +266,14 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     }
 
     @Override
-    public Cursor find(SessionLocal session, SearchRow first, SearchRow last, boolean reverse) {
-        return find(session, first, false, last, reverse);
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
+        return find(session, first, false, last);
     }
 
-    private Cursor find(SessionLocal session, SearchRow first, boolean bigger, SearchRow last, boolean reverse) {
-        SearchRow min = convertToKey(first, bigger ^ reverse);
-        SearchRow max = convertToKey(last, !reverse);
-        return new MVStoreCursor(session, getMap(session).keyIterator(min, max, reverse), mvTable);
+    private Cursor find(SessionLocal session, SearchRow first, boolean bigger, SearchRow last) {
+        SearchRow min = convertToKey(first, bigger);
+        SearchRow max = convertToKey(last, Boolean.TRUE);
+        return new MVStoreCursor(session, getMap(session).keyIterator(min, max), mvTable);
     }
 
     private SearchRow convertToKey(SearchRow r, Boolean minMax) {
@@ -334,7 +334,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
                 return new SingleRowCursor(mvTable.getRow(session, key.getKey()));
             }
         }
-        return SingleRowCursor.EMPTY;
+        return new SingleRowCursor(null);
     }
 
     @Override
@@ -362,13 +362,19 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     }
 
     @Override
+    public long getDiskSpaceUsed() {
+        // TODO estimate disk space usage
+        return 0;
+    }
+
+    @Override
     public boolean canFindNext() {
         return true;
     }
 
     @Override
     public Cursor findNext(SessionLocal session, SearchRow higherThan, SearchRow last) {
-        return find(session, higherThan, true, last, false);
+        return find(session, higherThan, true, last);
     }
 
     /**

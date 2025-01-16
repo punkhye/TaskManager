@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
 
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Set;
 import org.h2.api.ErrorCode;
@@ -19,13 +18,10 @@ import org.h2.engine.SessionLocal;
 import org.h2.expression.ParameterInterface;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
-import org.h2.result.BatchResult;
-import org.h2.result.MergedResult;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultWithGeneratedKeys;
 import org.h2.result.ResultWithPaddedStrings;
 import org.h2.util.Utils;
-import org.h2.value.Value;
 
 /**
  * Represents a SQL statement. This object is only used on the server side.
@@ -155,10 +151,10 @@ public abstract class Command implements CommandInterface {
     }
 
     @Override
-    public void stop(boolean commitIfAutoCommit) {
+    public void stop() {
         if (session.isOpen()) {
             commitIfNonTransactional();
-            if (commitIfAutoCommit && isTransactional() && session.getAutoCommit()) {
+            if (isTransactional() && session.getAutoCommit()) {
                 session.commit(false);
             }
         }
@@ -232,7 +228,7 @@ public abstract class Command implements CommandInterface {
                 session.resetThreadLocalSession(oldSession);
                 session.endStatement();
                 if (callStop) {
-                    stop(true);
+                    stop();
                 }
             }
         } finally {
@@ -242,115 +238,74 @@ public abstract class Command implements CommandInterface {
 
     @Override
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
-        session.lock();
-        try {
-            session.waitIfExclusiveModeEnabled();
-            return executeUpdate(generatedKeysRequest, true);
-        } finally {
-            session.unlock();
-        }
-    }
-
-    @Override
-    public BatchResult executeBatchUpdate(ArrayList<Value[]> batchParameters, Object generatedKeysRequest) {
-        session.lock();
-        try {
-            session.waitIfExclusiveModeEnabled();
-            int size = batchParameters.size();
-            long[] updateCounts = new long[size];
-            MergedResult generatedKeys = generatedKeysRequest != null ? new MergedResult() : null;
-            ArrayList<SQLException> exceptions = new ArrayList<>();
-            for (int i = 0; i < size; i++) {
-                Value[] set = batchParameters.get(i);
-                ArrayList<? extends ParameterInterface> parameters = getParameters();
-                for (int j = 0, l = set.length; j < l; j++) {
-                    parameters.get(j).setValue(set[j], true);
-                }
-                long updateCount;
-                try {
-                    ResultWithGeneratedKeys result = executeUpdate(generatedKeysRequest, i + 1 == size);
-                    updateCount = result.getUpdateCount();
-                    if (generatedKeys != null) {
-                        ResultInterface keys = result.getGeneratedKeys();
-                        if (keys != null) {
-                            generatedKeys.add(keys);
-                        }
-                    }
-                } catch (Exception e) {
-                    exceptions.add(DbException.toSQLException(e));
-                    updateCount = Statement.EXECUTE_FAILED;
-                }
-                updateCounts[i] = updateCount;
-            }
-            return new BatchResult(updateCounts, generatedKeys != null ? generatedKeys.getResult() : null, exceptions);
-        } finally {
-            session.unlock();
-        }
-    }
-
-    private ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest, boolean commitIfAutoCommit) {
         long start = 0;
         boolean callStop = true;
-        Database database = getDatabase();
-        commitIfNonTransactional();
-        SessionLocal.Savepoint rollback = session.setSavepoint();
-        session.startStatementWithinTransaction(this);
-        DbException ex = null;
-        Session oldSession = session.setThreadLocalSession();
+        session.lock();
         try {
-            while (true) {
-                database.checkPowerOff();
-                try {
-                    return update(generatedKeysRequest);
-                } catch (DbException e) {
-                    // cannot retry some commands
-                    if (!isRetryable()) {
-                        throw e;
+            Database database = getDatabase();
+            session.waitIfExclusiveModeEnabled();
+            commitIfNonTransactional();
+            SessionLocal.Savepoint rollback = session.setSavepoint();
+            session.startStatementWithinTransaction(this);
+            DbException ex = null;
+            Session oldSession = session.setThreadLocalSession();
+            try {
+                while (true) {
+                    database.checkPowerOff();
+                    try {
+                        return update(generatedKeysRequest);
+                    } catch (DbException e) {
+                        // cannot retry some commands
+                        if (!isRetryable()) {
+                            throw e;
+                        }
+                        start = filterConcurrentUpdate(e, start);
+                    } catch (OutOfMemoryError e) {
+                        callStop = false;
+                        database.shutdownImmediately();
+                        throw DbException.convert(e);
+                    } catch (Throwable e) {
+                        throw DbException.convert(e);
                     }
-                    start = filterConcurrentUpdate(e, start);
-                } catch (OutOfMemoryError e) {
+                }
+            } catch (DbException e) {
+                e = e.addSQL(sql);
+                SQLException s = e.getSQLException();
+                database.exceptionThrown(s, sql);
+                if (s.getErrorCode() == ErrorCode.OUT_OF_MEMORY) {
                     callStop = false;
                     database.shutdownImmediately();
-                    throw DbException.convert(e);
-                } catch (Throwable e) {
-                    throw DbException.convert(e);
+                    throw e;
                 }
-            }
-        } catch (DbException e) {
-            e = e.addSQL(sql);
-            SQLException s = e.getSQLException();
-            database.exceptionThrown(s, sql);
-            if (s.getErrorCode() == ErrorCode.OUT_OF_MEMORY) {
-                callStop = false;
-                database.shutdownImmediately();
+                try {
+                    database.checkPowerOff();
+                    if (s.getErrorCode() == ErrorCode.DEADLOCK_1) {
+                        session.rollback();
+                    } else {
+                        session.rollbackTo(rollback);
+                    }
+                } catch (Throwable nested) {
+                    e.addSuppressed(nested);
+                }
+                ex = e;
                 throw e;
-            }
-            try {
-                database.checkPowerOff();
-                if (s.getErrorCode() == ErrorCode.DEADLOCK_1) {
-                    session.rollback();
-                } else {
-                    session.rollbackTo(rollback);
+            } finally {
+                session.resetThreadLocalSession(oldSession);
+                try {
+                    session.endStatement();
+                    if (callStop) {
+                        stop();
+                    }
+                } catch (Throwable nested) {
+                    if (ex == null) {
+                        throw nested;
+                    } else {
+                        ex.addSuppressed(nested);
+                    }
                 }
-            } catch (Throwable nested) {
-                e.addSuppressed(nested);
             }
-            ex = e;
-            throw e;
         } finally {
-            session.resetThreadLocalSession(oldSession);
-            try {
-                session.endStatement();
-                if (callStop) {
-                    stop(commitIfAutoCommit);
-                }
-            } catch (Throwable nested) {
-                if (ex == null) {
-                    throw nested;
-                } else {
-                    ex.addSuppressed(nested);
-                }
-            }
+            session.unlock();
         }
     }
 

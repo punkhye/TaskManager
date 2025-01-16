@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -20,7 +20,6 @@ import org.h2.table.Table;
 import org.h2.value.Value;
 import org.h2.value.ValueGeometry;
 import org.h2.value.ValueNull;
-import org.h2.value.ValueRow;
 
 /**
  * The filter used to walk through an index. This class supports IN(..)
@@ -34,18 +33,13 @@ public class IndexCursor implements Cursor {
 
     private SessionLocal session;
     private Index index;
-    private boolean reverse;
     private Table table;
     private IndexColumn[] indexColumns;
     private boolean alwaysFalse;
 
     private SearchRow start, end, intersects;
     private Cursor cursor;
-    /**
-     * Contains a {@link Column} or {@code Column[]} depending on the condition type.
-     * @see IndexCondition#isCompoundColumns()
-     */
-    private Object inColumn;
+    private Column inColumn;
     private int inListIndex;
     private Value[] inList;
     private ResultInterface inResult;
@@ -53,9 +47,8 @@ public class IndexCursor implements Cursor {
     public IndexCursor() {
     }
 
-    public void setIndex(Index index, boolean reverse) {
+    public void setIndex(Index index) {
         this.index = index;
-        this.reverse = reverse;
         this.table = index.getTable();
         Column[] columns = table.getColumns();
         indexColumns = new IndexColumn[columns.length];
@@ -93,21 +86,6 @@ public class IndexCursor implements Cursor {
             // lookups, each such lookup will perform an own table scan.
             if (index.isFindUsingFullTableScan()) {
                 continue;
-            }
-            if (condition.isCompoundColumns()) {
-                Column[] columns = condition.getColumns();
-                if (condition.getCompareType() == Comparison.IN_LIST) {
-                    if (start == null && end == null) {
-                        if (canUseIndexForIn(columns)) {
-                            this.inColumn = columns;
-                            inList = condition.getCurrentValueList(s);
-                            inListIndex = 0;
-                        }
-                    }
-                    continue;
-                } else {
-                    throw DbException.getInternalError("Multiple columns can only be used with compound IN lists.");
-                }
             }
             Column column = condition.getColumn();
             switch (condition.getCompareType()) {
@@ -157,7 +135,7 @@ public class IndexCursor implements Cursor {
                 }
                 // An X=? condition will produce less rows than
                 // an X IN(..) condition, unless the X IN condition can use the index.
-                if ((isStart || isEnd) && !canUseIndexFor((Column) inColumn)) {
+                if ((isStart || isEnd) && !canUseIndexFor(inColumn)) {
                     inColumn = null;
                     inList = null;
                     inResult = null;
@@ -182,18 +160,10 @@ public class IndexCursor implements Cursor {
             return;
         }
         if (!alwaysFalse) {
-            SearchRow first, last;
-            if (reverse) {
-                first = end;
-                last = start;
-            } else {
-                first = start;
-                last = end;
-            }
             if (intersects != null && index instanceof SpatialIndex) {
-                cursor = ((SpatialIndex) index).findByGeometry(session, first, last, reverse, intersects);
+                cursor = ((SpatialIndex) index).findByGeometry(session, start, end, intersects);
             } else if (index != null) {
-                cursor = index.find(session, first, last, reverse);
+                cursor = index.find(session, start, end);
             }
         }
     }
@@ -217,34 +187,6 @@ public class IndexCursor implements Cursor {
         }
         IndexColumn idxCol = cols[0];
         return idxCol == null || idxCol.column == column;
-    }
-
-    private boolean canUseIndexForIn(Column[] columns) {
-        if (inColumn != null) {
-            // only one IN(..) condition can be used at the same time
-            return false;
-        }
-        return canUseIndexForIn(index, columns);
-    }
-
-    /**
-     * Return {@code true} if {@link Index#getIndexColumns()} and the {@code columns} parameter contains the same
-     * elements in the same order. All column of the index must match the column in the {@code columns} array, or
-     * it must be a VIEW index (where the column is null).
-     * @see IndexCondition#getMask(ArrayList)
-     */
-    public static boolean canUseIndexForIn(Index index, Column[] columns) {
-        IndexColumn[] cols = index.getIndexColumns();
-        if (cols == null || cols.length != columns.length) {
-            return false;
-        }
-        for (int i = 0; i < cols.length; i++) {
-            IndexColumn idxCol = cols[i];
-            if (idxCol != null && idxCol.column != columns[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private SearchRow getSpatialSearchRow(SearchRow row, int columnId, Value v) {
@@ -367,11 +309,6 @@ public class IndexCursor implements Cursor {
             while (inResult.next()) {
                 Value v = inResult.currentRow()[0];
                 if (v != ValueNull.INSTANCE) {
-                    if (inColumn instanceof Column[]) {
-                        v = Column.convert(session, (Column[]) inColumn, (ValueRow) v);
-                    } else {
-                        v = ((Column) inColumn).convert(session, v);
-                    }
                     find(v);
                     break;
                 }
@@ -380,21 +317,10 @@ public class IndexCursor implements Cursor {
     }
 
     private void find(Value v) {
-        if (inColumn instanceof Column[]) {
-            Column[] columns = (Column[]) inColumn;
-            ValueRow converted = Column.convert(session, columns, ((ValueRow) v));
-            Value[] values = converted.getList();
-            for (int i = columns.length; --i >= 0; ) {
-                start.setValue(columns[i].getColumnId(), values[i]);
-            }
-        }
-        else {
-            Column column = (Column) inColumn;
-            v = column.convert(session, v);
-            int id = column.getColumnId();
-            start.setValue(id, v);
-        }
-        cursor = index.find(session, start, start, false);
+        v = inColumn.convert(session, v);
+        int id = inColumn.getColumnId();
+        start.setValue(id, v);
+        cursor = index.find(session, start, start);
     }
 
     @Override

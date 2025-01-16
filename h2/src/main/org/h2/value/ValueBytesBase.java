@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,6 +10,7 @@ import java.util.Arrays;
 import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
+import org.h2.util.Bits;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 
@@ -49,7 +50,7 @@ abstract class ValueBytesBase extends Value {
 
     @Override
     public final int compareTypeSafe(Value v, CompareMode mode, CastDataProvider provider) {
-        return Integer.signum(Arrays.compareUnsigned(value, ((ValueBytesBase) v).value));
+        return Bits.compareNotNullUnsigned(value, ((ValueBytesBase) v).value);
     }
 
     @Override

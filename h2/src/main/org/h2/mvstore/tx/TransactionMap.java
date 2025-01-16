@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -640,7 +640,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K,V> {
 
     @Override
     public Set<Entry<K, V>> entrySet() {
-        return new AbstractSet<>() {
+        return new AbstractSet<Entry<K, V>>() {
 
             @Override
             public Iterator<Entry<K, V>> iterator() {
@@ -835,18 +835,6 @@ public final class TransactionMap<K, V> extends AbstractMap<K,V> {
     }
 
     /**
-     * Iterate over keys.
-     *
-     * @param from the first key to return
-     * @param to the last key to return or null if there is no limit
-     * @param reverse if true, iterate in reverse (descending) order
-     * @return the iterator
-     */
-    public TMIterator<K, V, K> keyIterator(K from, K to, boolean reverse) {
-        return chooseIterator(from, to, reverse, false);
-    }
-
-    /**
      * Iterate over keys, including keys from uncommitted entries.
      *
      * @param from the first key to return
@@ -866,18 +854,6 @@ public final class TransactionMap<K, V> extends AbstractMap<K,V> {
      */
     public TMIterator<K, V, Map.Entry<K, V>> entryIterator(final K from, final K to) {
         return chooseIterator(from, to, false, true);
-    }
-
-    /**
-     * Iterate over entries.
-     *
-     * @param from the first key to return
-     * @param to the last key to return
-     * @param reverse if true, iterate in reverse (descending) order
-     * @return the iterator
-     */
-    public TMIterator<K, V, Map.Entry<K, V>> entryIterator(K from, K to, boolean reverse) {
-        return chooseIterator(from, to, reverse, true);
     }
 
     private <X> TMIterator<K, V, X> chooseIterator(K from, K to, boolean reverse, boolean forEntries) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -171,6 +171,7 @@ public class Analyze extends DefineCommand {
     public static void analyzeTable(SessionLocal session, Table table, int sample, boolean manual) {
         if (!table.isValid()
                 || table.getTableType() != TableType.TABLE //
+                || table.isHidden() //
                 || session == null //
                 || !manual && (session.getDatabase().isSysTableLocked() || table.hasSelectTrigger()) //
                 || table.isTemporary() && !table.isGlobalTemporary() //
@@ -187,7 +188,7 @@ public class Analyze extends DefineCommand {
         if (columnCount == 0) {
             return;
         }
-        Cursor cursor = table.getScanIndex(session).find(session, null, null, false);
+        Cursor cursor = table.getScanIndex(session).find(session, null, null);
         if (cursor.next()) {
             SelectivityData[] array = new SelectivityData[columnCount];
             for (int i = 0; i < columnCount; i++) {

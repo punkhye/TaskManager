@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -145,8 +145,10 @@ public class FreeSpaceBitSet {
             int freeBlocks = end - start;
             if (end < 0 || freeBlocks >= blocks) {
                 if ((reservedHigh < 0 || start < reservedHigh) && start + blocks > reservedLow) { // overlap detected
-                    if (reservedHigh >= 0) {
-                        freeBlocksTotal += freeBlocks;
+                    if (reservedHigh < 0) {
+                        start = getAfterLastBlock();
+                        end = -1;
+                    } else {
                         i = reservedHigh;
                         continue;
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -45,7 +45,7 @@ import org.h2.util.Utils;
  * }
  * </pre>
  */
-public class JdbcStatement extends TraceObject implements Statement {
+public class JdbcStatement extends TraceObject implements Statement, JdbcStatementBackwardsCompat {
 
     protected JdbcConnection conn;
     protected Session session;
@@ -801,29 +801,17 @@ public class JdbcStatement extends TraceObject implements Statement {
             debugCodeCall("executeBatch");
             checkClosed();
             if (batchCommands == null) {
-                closeOldResultSet();
-                return new int[0];
+                batchCommands = new ArrayList<>();
             }
             int size = batchCommands.size();
             int[] result = new int[size];
-            SQLException exception = null, last = null;
+            SQLException exception = new SQLException();
             for (int i = 0; i < size; i++) {
-                int updateCount;
-                try {
-                    long longUpdateCount = executeUpdateInternal(batchCommands.get(i), null);
-                    updateCount = longUpdateCount <= Integer.MAX_VALUE ? (int) longUpdateCount : SUCCESS_NO_INFO;
-                } catch (Exception e) {
-                    SQLException s = DbException.toSQLException(e);
-                    if (last == null) {
-                        last = exception = s;
-                    } else {
-                        last.setNextException(s);
-                    }
-                    updateCount = Statement.EXECUTE_FAILED;
-                }
-                result[i] = updateCount;
+                long updateCount = executeBatchElement(batchCommands.get(i), exception);
+                result[i] = updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
             }
             batchCommands = null;
+            exception = exception.getNextException();
             if (exception != null) {
                 throw new JdbcBatchUpdateException(exception, result);
             }
@@ -845,28 +833,16 @@ public class JdbcStatement extends TraceObject implements Statement {
             debugCodeCall("executeLargeBatch");
             checkClosed();
             if (batchCommands == null) {
-                closeOldResultSet();
-                return new long[0];
+                batchCommands = new ArrayList<>();
             }
             int size = batchCommands.size();
             long[] result = new long[size];
-            SQLException exception = null, last = null;
+            SQLException exception = new SQLException();
             for (int i = 0; i < size; i++) {
-                long updateCount;
-                try {
-                    updateCount = executeUpdateInternal(batchCommands.get(i), null);
-                } catch (Exception e) {
-                    SQLException s = DbException.toSQLException(e);
-                    if (last == null) {
-                        last = exception = s;
-                    } else {
-                        last.setNextException(s);
-                    }
-                    updateCount = Statement.EXECUTE_FAILED;
-                }
-                result[i] = updateCount;
+                result[i] = executeBatchElement(batchCommands.get(i), exception);
             }
             batchCommands = null;
+            exception = exception.getNextException();
             if (exception != null) {
                 throw new JdbcBatchUpdateException(exception, result);
             }
@@ -874,6 +850,17 @@ public class JdbcStatement extends TraceObject implements Statement {
         } catch (Exception e) {
             throw logAndConvert(e);
         }
+    }
+
+    private long executeBatchElement(String sql, SQLException exception) {
+        long updateCount;
+        try {
+            updateCount = executeUpdateInternal(sql, null);
+        } catch (Exception e) {
+            exception.setNextException(logAndConvert(e));
+            updateCount = Statement.EXECUTE_FAILED;
+        }
+        return updateCount;
     }
 
     /**
@@ -911,7 +898,7 @@ public class JdbcStatement extends TraceObject implements Statement {
      * @throws SQLException if this object is closed
      */
     @Override
-    public final ResultSet getGeneratedKeys() throws SQLException {
+    public ResultSet getGeneratedKeys() throws SQLException {
         try {
             int id = generatedKeys != null ? generatedKeys.getTraceId() : getNextId(TraceObject.RESULT_SET);
             if (isDebugEnabled()) {
@@ -1345,7 +1332,7 @@ public class JdbcStatement extends TraceObject implements Statement {
      */
     void onLazyResultSetClose(CommandInterface command, boolean closeCommand) {
         setExecutingStatement(null);
-        command.stop(true);
+        command.stop();
         if (closeCommand) {
             command.close();
         }

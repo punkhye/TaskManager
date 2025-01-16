@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -232,21 +232,9 @@ public class TableFilter implements ColumnResolver {
                     masks = null;
                     break;
                 }
-                if (condition.isCompoundColumns()) {
-                    // Set the op mask in case of compound columns as well.
-                    Column[] columns = condition.getColumns();
-                    for (int i = 0, n = columns.length; i < n; i++) {
-                        int id = columns[i].getColumnId();
-                        if (id >= 0) {
-                            masks[id] |= condition.getMask(indexConditions);
-                        }
-                    }
-                }
-                else {
-                    int id = condition.getColumn().getColumnId();
-                    if (id >= 0) {
-                        masks[id] |= condition.getMask(indexConditions);
-                    }
+                int id = condition.getColumn().getColumnId();
+                if (id >= 0) {
+                    masks[id] |= condition.getMask(indexConditions);
                 }
             }
         }
@@ -292,7 +280,7 @@ public class TableFilter implements ColumnResolver {
             // this will result in an exception later on
             return;
         }
-        setIndex(item.getIndex(), false);
+        setIndex(item.getIndex());
         masks = item.getMasks();
         if (nestedJoin != null) {
             if (item.getNestedJoinPlan() != null) {
@@ -315,7 +303,7 @@ public class TableFilter implements ColumnResolver {
      */
     private void setScanIndexes() {
         if (index == null) {
-            setIndex(table.getScanIndex(session), false);
+            setIndex(table.getScanIndex(session));
         }
         if (join != null) {
             join.setScanIndexes();
@@ -332,54 +320,14 @@ public class TableFilter implements ColumnResolver {
     public void prepare() {
         // forget all unused index conditions
         // the indexConditions list may be modified here
-        boolean compoundIndexConditionFound = false;
         for (int i = 0; i < indexConditions.size(); i++) {
             IndexCondition condition = indexConditions.get(i);
             if (!condition.isAlwaysFalse()) {
-                if (compoundIndexConditionFound) {
-                    // A compound index condition is already found. We cannot use other indexes with it, so removing
-                    // everything else. The compound condition was added first.
-                    // See: ConditionIn#createIndexConditions(SessionLocal, TableFilter)
-                    indexConditions.remove(i);
-                    i--;
-                } else if (condition.isCompoundColumns()) {
-                    if ( index.getIndexType().isScan() ) {
-                        // This is only a pseudo index.
+                Column col = condition.getColumn();
+                if (col.getColumnId() >= 0) {
+                    if (index.getColumnIndex(col) < 0) {
                         indexConditions.remove(i);
                         i--;
-                        continue;
-                    }
-                    // Checking the columns match with the index.
-                    if (IndexCursor.canUseIndexForIn(index, condition.getColumns())) {
-                        // The condition uses the exact columns in the right order.
-                        compoundIndexConditionFound = true;
-                        continue;
-                    }
-                    // Trying to fix the order of the condition columns.
-                    IndexCondition fixedCondition = condition.cloneWithIndexColumns(index);
-                    if (fixedCondition != null) {
-                        indexConditions.set(i, fixedCondition);
-                        compoundIndexConditionFound = true;
-                        continue;
-                    }
-                    // Index condition cannot be used.
-                    indexConditions.remove(i);
-                    i--;
-                } else {
-                    Column col = condition.getColumn();
-                    if (col.getColumnId() >= 0) {
-                        int columnIndex = index.getColumnIndex(col);
-                        if (columnIndex == 0) {
-                            // The first column of the index always matches.
-                            continue;
-                        }
-                        if (columnIndex < 0 || condition.getCompareType() == Comparison.IN_LIST ) {
-                            // The index does not contain the column, or this is an IN() condition which can be used
-                            // only if the first index column is the searched one.
-                            // See: IndexCursor#canUseIndexFor(column)
-                            indexConditions.remove(i);
-                            i--;
-                        }
                     }
                 }
             }
@@ -635,6 +583,7 @@ public class TableFilter implements ColumnResolver {
      */
     public void addJoin(TableFilter filter, boolean outer, Expression on) {
         if (on != null) {
+            on.mapColumns(this, 0, Expression.MAP_INITIAL);
             TableFilterVisitor visitor = new MapColumnsVisitor(on);
             visit(visitor);
             filter.visit(visitor);
@@ -646,7 +595,7 @@ public class TableFilter implements ColumnResolver {
                 filter.visit(JOI_VISITOR);
             }
             if (on != null) {
-                filter.addFilter(on);
+                filter.mapAndAddFilter(on);
             }
         } else {
             join.addJoin(filter, outer, on);
@@ -663,40 +612,18 @@ public class TableFilter implements ColumnResolver {
     }
 
     /**
-     * Add the join condition.
+     * Map the columns and add the join condition.
      *
      * @param on the condition
      */
-    public void addFilter(Expression on) {
+    public void mapAndAddFilter(Expression on) {
+        on.mapColumns(this, 0, Expression.MAP_INITIAL);
         addFilterCondition(on, true);
-        if (join != null) {
-            join.addFilter(on);
-        }
-    }
-
-    /**
-     * Map the columns to the given column resolver.
-     *
-     * @param resolver
-     *            the resolver
-     * @param level
-     *            the subquery level (0 is the top level query, 1 is the first
-     *            subquery level)
-     * @param outer
-     *            whether this method was called from the outer query
-     */
-    public void mapColumns(ColumnResolver resolver, int level, boolean outer) {
-        if (!outer && joinOuter) {
-            return;
-        }
-        if (joinCondition != null) {
-            joinCondition.mapColumns(resolver, level, Expression.MAP_INITIAL);
-        }
         if (nestedJoin != null) {
-            nestedJoin.mapColumns(resolver, level, outer);
+            on.mapColumns(nestedJoin, 0, Expression.MAP_INITIAL);
         }
         if (join != null) {
-            join.mapColumns(resolver, level, outer);
+            join.mapAndAddFilter(on);
         }
     }
 
@@ -789,7 +716,12 @@ public class TableFilter implements ColumnResolver {
             }
             return builder;
         }
-        table.getSQL(builder, sqlFlags);
+        if (table instanceof TableView && ((TableView) table).isRecursive()) {
+            table.getSchema().getSQL(builder, sqlFlags).append('.');
+            ParserUtil.quoteIdentifier(builder, table.getName(), sqlFlags);
+        } else {
+            table.getSQL(builder, sqlFlags);
+        }
         if (table instanceof TableView && ((TableView) table).isInvalid()) {
             throw DbException.get(ErrorCode.VIEW_IS_INVALID_2, table.getName(), "not compiled");
         }
@@ -890,9 +822,9 @@ public class TableFilter implements ColumnResolver {
         return index;
     }
 
-    public void setIndex(Index index, boolean reverse) {
+    public void setIndex(Index index) {
         this.index = index;
-        cursor.setIndex(index, reverse);
+        cursor.setIndex(index);
     }
 
     public void setUsed(boolean used) {

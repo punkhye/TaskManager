@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -70,9 +70,7 @@ public final class FunctionsPostgreSQL extends ModeFunction {
 
     private static final int PG_RELATION_SIZE = PG_POSTMASTER_START_TIME + 1;
 
-    private static final int PG_TOTAL_RELATION_SIZE = PG_RELATION_SIZE + 1;
-
-    private static final int PG_TABLE_IS_VISIBLE = PG_TOTAL_RELATION_SIZE + 1;
+    private static final int PG_TABLE_IS_VISIBLE = PG_RELATION_SIZE + 1;
 
     private static final int SET_CONFIG = PG_TABLE_IS_VISIBLE + 1;
 
@@ -116,8 +114,6 @@ public final class FunctionsPostgreSQL extends ModeFunction {
                         false));
         FUNCTIONS.put("PG_RELATION_SIZE",
                 new FunctionInfo("PG_RELATION_SIZE", PG_RELATION_SIZE, VAR_ARGS, Value.BIGINT, true, false));
-        FUNCTIONS.put("PG_TOTAL_RELATION_SIZE", new FunctionInfo("PG_TOTAL_RELATION_SIZE", PG_TOTAL_RELATION_SIZE,
-                VAR_ARGS, Value.BIGINT, true, false));
         FUNCTIONS.put("PG_TABLE_IS_VISIBLE",
                 new FunctionInfo("PG_TABLE_IS_VISIBLE", PG_TABLE_IS_VISIBLE, 1, Value.BOOLEAN, true, false));
         FUNCTIONS.put("SET_CONFIG", new FunctionInfo("SET_CONFIG", SET_CONFIG, 3, Value.VARCHAR, true, false));
@@ -163,7 +159,6 @@ public final class FunctionsPostgreSQL extends ModeFunction {
             break;
         case OBJ_DESCRIPTION:
         case PG_RELATION_SIZE:
-        case PG_TOTAL_RELATION_SIZE:
             min = 1;
             max = 2;
             break;
@@ -192,11 +187,7 @@ public final class FunctionsPostgreSQL extends ModeFunction {
             return new CurrentGeneralValueSpecification(CurrentGeneralValueSpecification.CURRENT_CATALOG)
                     .optimize(session);
         case GEN_RANDOM_UUID:
-            /*
-             * PostgresSQL uses version 4.
-             */
-            return new RandFunction(ValueExpression.get(ValueInteger.get(4)), RandFunction.RANDOM_UUID)
-                    .optimize(session);
+            return new RandFunction(null, RandFunction.RANDOM_UUID).optimize(session);
         default:
             boolean allConst = optimizeArguments(session);
             type = TypeInfo.getTypeInfo(info.returnDataType);
@@ -266,11 +257,7 @@ public final class FunctionsPostgreSQL extends ModeFunction {
             break;
         case PG_RELATION_SIZE:
             // Optional second argument is ignored
-            result = relationSize(session, v0, false);
-            break;
-        case PG_TOTAL_RELATION_SIZE:
-            // Optional second argument is ignored
-            result = relationSize(session, v0, true);
+            result = relationSize(session, v0);
             break;
         case SET_CONFIG:
             // Not implemented
@@ -332,13 +319,15 @@ public final class FunctionsPostgreSQL extends ModeFunction {
         for (Schema schema : session.getDatabase().getAllSchemasNoMeta()) {
             for (Index index : schema.getAllIndexes()) {
                 if (index.getId() == indexId) {
-                    int ordinal;
-                    if (ordinalPosition == null || (ordinal = ordinalPosition.getInt()) == 0) {
-                        return ValueVarchar.get(index.getCreateSQL());
-                    }
-                    Column[] columns;
-                    if (ordinal >= 1 && ordinal <= (columns = index.getColumns()).length) {
-                        return ValueVarchar.get(columns[ordinal - 1].getName());
+                    if (!index.getTable().isHidden()) {
+                        int ordinal;
+                        if (ordinalPosition == null || (ordinal = ordinalPosition.getInt()) == 0) {
+                            return ValueVarchar.get(index.getCreateSQL());
+                        }
+                        Column[] columns;
+                        if (ordinal >= 1 && ordinal <= (columns = index.getColumns()).length) {
+                            return ValueVarchar.get(columns[ordinal - 1].getName());
+                        }
                     }
                     break;
                 }
@@ -372,15 +361,15 @@ public final class FunctionsPostgreSQL extends ModeFunction {
         return name;
     }
 
-    private static Value relationSize(SessionLocal session, Value tableOidOrName, boolean total) {
+    private static Value relationSize(SessionLocal session, Value tableOidOrName) {
         Table t;
-        l: if (tableOidOrName.getValueType() == Value.INTEGER) {
+        if (tableOidOrName.getValueType() == Value.INTEGER) {
             int tid = tableOidOrName.getInt();
             for (Schema schema : session.getDatabase().getAllSchemasNoMeta()) {
                 for (Table table : schema.getAllTablesAndViews(session)) {
                     if (tid == table.getId()) {
                         t = table;
-                        break l;
+                        break;
                     }
                 }
             }
@@ -388,7 +377,7 @@ public final class FunctionsPostgreSQL extends ModeFunction {
         } else {
             t = new Parser(session).parseTableName(tableOidOrName.getString());
         }
-        return ValueBigint.get(t.getDiskSpaceUsed(total, false));
+        return ValueBigint.get(t.getDiskSpaceUsed());
     }
 
 }

@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.security;
 
-import static org.h2.util.Bits.INT_VH_BE;
-
 import org.h2.message.DbException;
+import org.h2.util.Bits;
 
 /**
  * An implementation of the XTEA block cipher algorithm.
@@ -27,7 +26,7 @@ public class XTEA implements BlockCipher {
     public void setKey(byte[] b) {
         int[] key = new int[4];
         for (int i = 0; i < 16; i += 4) {
-            key[i / 4] = (int) INT_VH_BE.get(b, i);
+            key[i / 4] = Bits.readInt(b, i);
         }
         int[] r = new int[32];
         for (int i = 0, sum = 0; i < 32;) {
@@ -66,8 +65,8 @@ public class XTEA implements BlockCipher {
     }
 
     private void encryptBlock(byte[] in, byte[] out, int off) {
-        int y = (int) INT_VH_BE.get(in, off);
-        int z = (int) INT_VH_BE.get(in, off + 4);
+        int y = Bits.readInt(in, off);
+        int z = Bits.readInt(in, off + 4);
         y += (((z << 4) ^ (z >>> 5)) + z) ^ k0;
         z += (((y >>> 5) ^ (y << 4)) + y) ^ k1;
         y += (((z << 4) ^ (z >>> 5)) + z) ^ k2;
@@ -100,13 +99,13 @@ public class XTEA implements BlockCipher {
         z += (((y >>> 5) ^ (y << 4)) + y) ^ k29;
         y += (((z << 4) ^ (z >>> 5)) + z) ^ k30;
         z += (((y >>> 5) ^ (y << 4)) + y) ^ k31;
-        INT_VH_BE.set(out, off, y);
-        INT_VH_BE.set(out, off + 4, z);
+        Bits.writeInt(out, off, y);
+        Bits.writeInt(out, off + 4, z);
     }
 
     private void decryptBlock(byte[] in, byte[] out, int off) {
-        int y = (int) INT_VH_BE.get(in, off);
-        int z = (int) INT_VH_BE.get(in, off + 4);
+        int y = Bits.readInt(in, off);
+        int z = Bits.readInt(in, off + 4);
         z -= (((y >>> 5) ^ (y << 4)) + y) ^ k31;
         y -= (((z << 4) ^ (z >>> 5)) + z) ^ k30;
         z -= (((y >>> 5) ^ (y << 4)) + y) ^ k29;
@@ -139,8 +138,8 @@ public class XTEA implements BlockCipher {
         y -= (((z << 4) ^ (z >>> 5)) + z) ^ k2;
         z -= (((y >>> 5) ^ (y << 4)) + y) ^ k1;
         y -= (((z << 4) ^ (z >>> 5)) + z) ^ k0;
-        INT_VH_BE.set(out, off, y);
-        INT_VH_BE.set(out, off + 4, z);
+        Bits.writeInt(out, off, y);
+        Bits.writeInt(out, off + 4, z);
     }
 
     @Override

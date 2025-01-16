@@ -1,4 +1,4 @@
-# Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+# Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
 # and the EPL 1.0 (https://h2database.com/html/license.html).
 # Initial Developer: H2 Group
 
@@ -109,8 +109,6 @@ INSERT INTO [schemaName.]tableName [ ( columnName [,...] ) ]
     | DEFAULT VALUES
 ","
 Inserts a new row / new rows into a table.
-
-If column names aren't specified a list of all visible columns in the table is assumed.
 
 When using DIRECT, then the results from the query are directly applied in the target table without any intermediate step.
 ","
@@ -353,12 +351,13 @@ VALUES (1, 'Hello'), (2, 'World');
 
 "Commands (DML)","WITH","
 WITH [ RECURSIVE ] { name [( columnName [,...] )] AS ( query ) [,...] }
-query
+{ query | @h2@ { insert | update | delete | mergeInto | mergeUsing | createTable } }
 ","
 Can be used to create a recursive or non-recursive query (common table expression).
 For recursive queries the first select has to be a UNION.
 One or more common table entries can be referred to by name.
-Column name declarations are optional - the column names will be inferred from the named select queries.
+Column name declarations are now optional - the column names will be inferred from the named select queries.
+The final action in a WITH statement can be a select, insert, update, merge, delete or create table.
 ","
 WITH RECURSIVE cte(n) AS (
         SELECT 1
@@ -1666,11 +1665,8 @@ With HIGH default ordering NULL values are considered as larger than other value
 With FIRST default ordering NULL values are sorted before other values,
 no matter if ascending or descending order is used.
 
-With LAST default ordering NULL values are sorted after other values,
+WITH LAST default ordering NULL values are sorted after other values,
 no matter if ascending or descending order is used.
-
-Please note that FIRST and LAST make impossible to use an index on ""(A ASC)"" for ""ORDER BY A DESC""
-if column is nullable.
 
 This setting is not persistent, but indexes are persisted with explicit NULLS FIRST or NULLS LAST ordering
 and aren't affected by changes in this setting.
@@ -3554,8 +3550,6 @@ WHEN MATCHED [ AND expression ] THEN
 UPDATE SET setClauseList | DELETE
 ","
 WHEN MATCHED clause for MERGE USING command.
-
-Updates or deletes rows in a target table.
 ","
 WHEN MATCHED THEN UPDATE SET NAME = S.NAME
 WHEN MATCHED THEN DELETE
@@ -3568,10 +3562,6 @@ WHEN NOT MATCHED [ AND expression ] THEN INSERT
 VALUES ({DEFAULT|expression} [,...])
 ","
 WHEN NOT MATCHED clause for MERGE USING command.
-
-Inserts rows into a target table.
-
-If column names aren't specified a list of all visible columns in the target table is assumed.
 ","
 WHEN NOT MATCHED THEN INSERT (ID, NAME) VALUES (S.ID, S.NAME)
 "
@@ -4595,12 +4585,8 @@ The allowed length is from 1 to 1,000,000,000 bytes.
 The length is a size constraint; only the actual data is persisted.
 
 To set a JSON value with ""java.lang.String"" in a PreparedStatement use a ""FORMAT JSON"" data format
-(""INSERT INTO TEST(ID, DATA) VALUES (?, ? FORMAT JSON)"") or use
-""setObject(parameter, jsonText, H2Type.JSON)"" instead of ""setString()"".
-
-Without the data format VARCHAR values are converted to JSON string values.
-
-SQL/JSON null value ""JSON 'null'"" is distinct from the SQL null value ""NULL"".
+(""INSERT INTO TEST(ID, DATA) VALUES (?, ? FORMAT JSON)"").
+Without the data format VARCHAR values are converted to a JSON string values.
 
 Order of object members is preserved as is.
 Duplicate object member names are allowed.
@@ -4611,7 +4597,7 @@ JSON
 "Data Types","UUID Type","
 @h2@ UUID
 ","
-RFC 9562-compliant universally unique identifier. This is a 128 bit value.
+Universally unique identifier. This is a 128 bit value.
 To store values, use ""PreparedStatement.setBytes"",
 ""setString"", or ""setObject(uuid)"" (where ""uuid"" is a ""java.util.UUID"").
 ""ResultSet.getObject"" will return a ""java.util.UUID"".
@@ -4620,7 +4606,6 @@ Please note that using an index on randomly generated data will
 result on poor performance once there are millions of rows in a table.
 The reason is that the cache behavior is very bad with randomly distributed data.
 This is a problem for any database system.
-To avoid this problem use UUID version 7 values.
 
 For details, see the documentation of ""java.util.UUID"".
 ","
@@ -4852,10 +4837,8 @@ ABS(CAST(I AS BIGINT))
 ACOS(numeric)
 ","
 Calculate the arc cosine.
-
-Argument must be between -1 and 1 inclusive.
-
-This function returns a double precision value.
+See also Java ""Math.acos"".
+This method returns a double.
 ","
 ACOS(D)
 "
@@ -4864,10 +4847,8 @@ ACOS(D)
 ASIN(numeric)
 ","
 Calculate the arc sine.
-
-Argument must be between -1 and 1 inclusive.
-
-This function returns a double precision value.
+See also Java ""Math.asin"".
+This method returns a double.
 ","
 ASIN(D)
 "
@@ -4876,8 +4857,8 @@ ASIN(D)
 ATAN(numeric)
 ","
 Calculate the arc tangent.
-
-This function returns a double precision value.
+See also Java ""Math.atan"".
+This method returns a double.
 ","
 ATAN(D)
 "
@@ -4886,8 +4867,8 @@ ATAN(D)
 COS(numeric)
 ","
 Calculate the trigonometric cosine.
-
-This function returns a double precision value.
+See also Java ""Math.cos"".
+This method returns a double.
 ","
 COS(ANGLE)
 "
@@ -4896,8 +4877,8 @@ COS(ANGLE)
 COSH(numeric)
 ","
 Calculate the hyperbolic cosine.
-
-This function returns a double precision value.
+See also Java ""Math.cosh"".
+This method returns a double.
 ","
 COSH(X)
 "
@@ -4906,8 +4887,8 @@ COSH(X)
 @h2@ COT(numeric)
 ","
 Calculate the trigonometric cotangent (""1/TAN(ANGLE)"").
-
-This function returns a double precision value.
+See also Java ""Math.*"" functions.
+This method returns a double.
 ","
 COT(ANGLE)
 "
@@ -4916,8 +4897,8 @@ COT(ANGLE)
 SIN(numeric)
 ","
 Calculate the trigonometric sine.
-
-This function returns a double precision value.
+See also Java ""Math.sin"".
+This method returns a double.
 ","
 SIN(ANGLE)
 "
@@ -4926,8 +4907,8 @@ SIN(ANGLE)
 SINH(numeric)
 ","
 Calculate the hyperbolic sine.
-
-This function returns a double precision value.
+See also Java ""Math.sinh"".
+This method returns a double.
 ","
 SINH(ANGLE)
 "
@@ -4936,8 +4917,8 @@ SINH(ANGLE)
 TAN(numeric)
 ","
 Calculate the trigonometric tangent.
-
-This function returns a double precision value.
+See also Java ""Math.tan"".
+This method returns a double.
 ","
 TAN(ANGLE)
 "
@@ -4946,8 +4927,8 @@ TAN(ANGLE)
 TANH(numeric)
 ","
 Calculate the hyperbolic tangent.
-
-This function returns a double precision value.
+See also Java ""Math.tanh"".
+This method returns a double.
 ","
 TANH(X)
 "
@@ -4956,8 +4937,8 @@ TANH(X)
 @h2@ ATAN2(numeric, numeric)
 ","
 Calculate the angle when converting the rectangular coordinates to polar coordinates.
-
-This function returns a double precision value.
+See also Java ""Math.atan2"".
+This method returns a double.
 ","
 ATAN2(X, Y)
 "
@@ -5296,23 +5277,15 @@ RAND()
 "
 
 "Functions (Numeric)","RANDOM_UUID","
-@h2@ RANDOM_UUID([versionInt]) | UUID()
+@h2@ { RANDOM_UUID | UUID } ()
 ","
-Returns a new RFC 9562-compliant UUID with the specified version.
-If version is not specified, a default version will be used.
-Current default is 4, but it may be changed in future versions of H2.
+Returns a new UUID with 122 pseudo random bits.
 
-Version 4 is a UUID with 122 pseudo random bits.
 Please note that using an index on randomly generated data will
 result on poor performance once there are millions of rows in a table.
 The reason is that the cache behavior is very bad with randomly distributed data.
 This is a problem for any database system.
-
-Version 7 is a time-ordered UUID value with layout optimized for database systems.
-It contains 48-bit number of milliseconds seconds since midnight 1 Jan 1970 UTC with leap seconds excluded,
-additional 12-bit sub-millisecond timestamp fraction if available, and 62 pseudo random bits.
 ","
-RANDOM_UUID(7)
 RANDOM_UUID()
 "
 
@@ -6522,52 +6495,6 @@ CALL DB_OBJECT_SQL('ROLE', 'MANAGER');
 CALL DB_OBJECT_SQL('TABLE', 'PUBLIC', 'MY_TABLE');
 "
 
-"Functions (System)","DB_OBJECT_SIZE","
-@h2@ DB_OBJECT_SIZE({'INDEX'|'TABLE'}, schemaNameString, objectNameString)
-","
-Returns the approximate amount of space used by the specified table (excluding its indexes) or index.
-Only size of version used by the current transaction is estimated.
-Size of large LOBs currently is not included into estimation.
-This function may be expensive since it has to load every page in the table or index.
-Use [DB_OBJECT_APPROXIMATE_SIZE](https://h2database.com/html/functions.html#db_object_approximate_size)
-for a faster coarse approximation.
-","
-CALL DB_OBJECT_SIZE('TABLE', 'PUBLIC', 'MY_TABLE');
-"
-
-"Functions (System)","DB_OBJECT_TOTAL_SIZE","
-@h2@ DB_OBJECT_TOTAL_SIZE('TABLE', schemaNameString, objectNameString)
-","
-Returns the approximate amount of space used by the specified table and all its indexes.
-Only size of version used by the current transaction is estimated.
-Size of large LOBs currently is not included into estimation.
-This function may be expensive since it has to load every page in the table and its indexes.
-Use [DB_OBJECT_APPROXIMATE_TOTAL_SIZE](https://h2database.com/html/functions.html#db_object_approximate_total_size)
-for a faster coarse approximation.
-","
-CALL DB_OBJECT_TOTAL_SIZE('TABLE', 'PUBLIC', 'MY_TABLE');
-"
-
-"Functions (System)","DB_OBJECT_APPROXIMATE_SIZE","
-@h2@ DB_OBJECT_APPROXIMATE_SIZE({'INDEX'|'TABLE'}, schemaNameString, objectNameString)
-","
-Returns the coarse approximate amount of space used by the specified table (excluding its indexes) or index.
-Only size of version used by the current transaction is estimated.
-Size of large LOBs currently is not included into estimation.
-","
-CALL DB_OBJECT_APPROXIMATE_SIZE('TABLE', 'PUBLIC', 'MY_TABLE');
-"
-
-"Functions (System)","DB_OBJECT_APPROXIMATE_TOTAL_SIZE","
-@h2@ DB_OBJECT_APPROXIMATE_TOTAL_SIZE('TABLE', schemaNameString, objectNameString)
-","
-Returns the coarse approximate amount of space used by the specified table and all its indexes.
-Only size of version used by the current transaction is estimated.
-Size of large LOBs currently is not included into estimation.
-","
-CALL DB_OBJECT_APPROXIMATE_TOTAL_SIZE('TABLE', 'PUBLIC', 'MY_TABLE');
-"
-
 "Functions (System)","DECODE","
 @c@ DECODE(value, whenValue, thenValue [,...])
 ","
@@ -6580,14 +6507,11 @@ CALL DECODE(RAND()>0.5, 0, 'Red', 1, 'Black');
 "
 
 "Functions (System)","DISK_SPACE_USED","
-@c@ DISK_SPACE_USED(tableNameString)
+@h2@ DISK_SPACE_USED(tableNameString)
 ","
 Returns the approximate amount of space used by the table specified.
-Only size of version used by the current transaction is estimated.
 Does not currently take into account indexes or LOB's.
 This function may be expensive since it has to load every page in the table.
-This function is deprecated,
-use [DB_OBJECT_SIZE](https://h2database.com/html/functions.html#db_object_size) instead of it.
 ","
 CALL DISK_SPACE_USED('my_table');
 "

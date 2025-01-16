@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -90,7 +90,7 @@ public final class Subquery extends Expression {
     @Override
     public void mapColumns(ColumnResolver resolver, int level, int state) {
         outerResolvers.add(resolver);
-        query.mapColumns(resolver, level + 1, true);
+        query.mapColumns(resolver, level + 1);
     }
 
     @Override
@@ -139,7 +139,7 @@ public final class Subquery extends Expression {
 
     @Override
     public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
-        return query.getPlanSQL(builder.append('('), sqlFlags).append(')');
+        return builder.append('(').append(query.getPlanSQL(sqlFlags)).append(')');
     }
 
     @Override
@@ -159,16 +159,6 @@ public final class Subquery extends Expression {
     @Override
     public int getCost() {
         return query.getCostAsExpression();
-    }
-
-    @Override
-    public TypeInfo getTypeIfStaticallyKnown(SessionLocal session) {
-        if (query.isConstantQuery()) {
-            query.prepare();
-            setType();
-            return expression.getType();
-        }
-        return null;
     }
 
     @Override

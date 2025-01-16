@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -172,7 +172,7 @@ public abstract class Chunk<C extends Chunk<C>> {
     }
 
     Chunk(Map<String, String> map, boolean full) {
-        this(DataUtils.readHexInt(map, ATTR_CHUNK, -1));
+        this(DataUtils.readHexInt(map, ATTR_CHUNK, 0));
         block = DataUtils.readHexLong(map, ATTR_BLOCK, 0);
         len = DataUtils.readHexInt(map, ATTR_LEN, 0);
         version = DataUtils.readHexLong(map, ATTR_VERSION, id);
@@ -206,7 +206,7 @@ public abstract class Chunk<C extends Chunk<C>> {
 
     Chunk(int id) {
         this.id = id;
-        if (id < 0 || id > MAX_ID) {
+        if (id <= 0) {
             throw DataUtils.newMVStoreException(
                     DataUtils.ERROR_FILE_CORRUPT, "Invalid chunk id {0}", id);
         }
@@ -219,7 +219,6 @@ public abstract class Chunk<C extends Chunk<C>> {
      *
      * @param buff the source buffer
      * @return the chunk
-     * @throws MVStoreException if {@code buff} does not contain a chunk header
      */
     static String readChunkHeader(ByteBuffer buff) {
         int pos = buff.position();
@@ -233,7 +232,7 @@ public abstract class Chunk<C extends Chunk<C>> {
                 return s;
             }
         }
-        throw DataUtils.newMVStoreException(DataUtils.ERROR_FILE_CORRUPT, "Not a valid chunk header");
+        return null;
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -144,10 +144,18 @@ public abstract class Index extends SchemaObject {
     }
 
     @Override
+    public final boolean isHidden() {
+        return table.isHidden();
+    }
+
+    @Override
     public String getCreateSQLForCopy(Table targetTable, String quotedName) {
         StringBuilder builder = new StringBuilder("CREATE ");
         builder.append(indexType.getSQL(true));
         builder.append(' ');
+        if (table.isHidden()) {
+            builder.append("IF NOT EXISTS ");
+        }
         builder.append(quotedName);
         builder.append(" ON ");
         targetTable.getSQL(builder, DEFAULT_SQL_FLAGS);
@@ -244,10 +252,9 @@ public abstract class Index extends SchemaObject {
      * @param session the session
      * @param first the first row, or null for no limit
      * @param last the last row, or null for no limit
-     * @param reverse if true, iterate in reverse (descending) order
      * @return the cursor to iterate over the results
      */
-    public abstract Cursor find(SessionLocal session, SearchRow first, SearchRow last, boolean reverse);
+    public abstract Cursor find(SessionLocal session, SearchRow first, SearchRow last);
 
     /**
      * Estimate the cost to search for rows given the search mask.
@@ -352,12 +359,9 @@ public abstract class Index extends SchemaObject {
     /**
      * Get the used disk space for this index.
      *
-     * @param approximate
-     *            {@code true} to return quick approximation
-     *
      * @return the estimated number of bytes
      */
-    public long getDiskSpaceUsed(boolean approximate) {
+    public long getDiskSpaceUsed() {
         return 0L;
     }
 
@@ -590,10 +594,6 @@ public abstract class Index extends SchemaObject {
                     break;
                 } else if ((mask & IndexCondition.END) == IndexCondition.END) {
                     rowsCost = rowsCost / 3;
-                    tryAdditional = true;
-                    break;
-                } else if ((mask & IndexCondition.SPATIAL_INTERSECTS) == IndexCondition.SPATIAL_INTERSECTS) {
-                    rowsCost = 2 + rowsCost / 4;
                     tryAdditional = true;
                     break;
                 } else {

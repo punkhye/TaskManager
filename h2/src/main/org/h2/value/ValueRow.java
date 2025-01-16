@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,10 +10,6 @@ import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.result.SimpleResult;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Row value.
@@ -144,42 +140,6 @@ public final class ValueRow extends ValueCollectionBase {
             values[i].getSQL(builder, sqlFlags);
         }
         return builder.append(')');
-    }
-
-    /**
-     * Creates a copy of this row but the new instance will contain the {@link #values} according to
-     * {@code newOrder}.<br />
-     * E.g.: ROW('a', 'b').cloneWithOrder([1, 0]) returns ROW('b', 'a')
-     * @param newOrder array of indexes to create the new values array
-     */
-    public ValueRow cloneWithOrder(int[] newOrder) {
-        int length = values.length;
-        if (newOrder.length != values.length) {
-            throw DbException.getInternalError("Length of the new orders is different than values count.");
-        }
-
-        Value[] newValues = new Value[length];
-        for (int i = 0; i < length; i++) {
-            newValues[i] = values[newOrder[i]];
-        }
-
-        ExtTypeInfoRow typeInfoRow = (ExtTypeInfoRow) type.getExtTypeInfo();
-        Map.Entry<String, TypeInfo>[] fields = typeInfoRow.getFields().toArray(createEntriesArray(length));
-        LinkedHashMap<String, TypeInfo> newFields = new LinkedHashMap<>(length);
-        for (int i = 0; i < length; i++) {
-            Map.Entry<String, TypeInfo> field = fields[newOrder[i]];
-            newFields.put(field.getKey(), field.getValue());
-        }
-        ExtTypeInfoRow newTypeInfoRow = new ExtTypeInfoRow(newFields);
-        TypeInfo newType = new TypeInfo(type.getValueType(), type.getDeclaredPrecision(),
-                type.getDeclaredScale(), newTypeInfoRow);
-
-        return new ValueRow(newType, newValues);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <K,V> Map.Entry<K,V>[] createEntriesArray(int length) {
-        return (Map.Entry<K,V>[])new Map.Entry[length];
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -43,7 +43,7 @@ public abstract class RandomAccessStore extends FileStore<SFChunk>
 
     private long reservedLow;
     private long reservedHigh;
-    private boolean stopIdleHousekeeping;
+
 
     public RandomAccessStore(Map<String, Object> config) {
         super(config);
@@ -290,7 +290,7 @@ public abstract class RandomAccessStore extends FileStore<SFChunk>
                         // no (valid) next
                         break;
                     }
-                    SFChunk test = readChunkHeaderAndFooter(newest.next, (newest.id + 1) & Chunk.MAX_ID);
+                    SFChunk test = readChunkHeaderAndFooter(newest.next, newest.id + 1);
                     if (test == null || test.version <= newest.version) {
                         break;
                     }
@@ -386,7 +386,7 @@ public abstract class RandomAccessStore extends FileStore<SFChunk>
             if (chunk == null) {
                 writeStoreHeader = true;
             } else if (chunk.next != c.block) {
-                // the last prediction did not match
+                // the last prediction did not matched
                 writeStoreHeader = true;
             } else {
                 long headerVersion = DataUtils.readHexLong(storeHeader, HDR_VERSION, 0);
@@ -657,11 +657,11 @@ public abstract class RandomAccessStore extends FileStore<SFChunk>
         assert reservedAreaHigh > 0 || block <= chunk.block : block + " " + chunk;
         ByteBuffer readBuff = readFully(chunk, start, length);
         writeFully(null, pos, readBuff);
-        // can not set chunk's new block until it's fully written at new location,
+        free(start, length);
+        // can not set chunk's new block/len until it's fully written at new location,
         // because concurrent reader can pick it up prematurely,
         chunk.block = block;
         chunk.next = 0;
-        free(start, length);
         saveChunkMetadataChanges(chunk);
         return true;
     }
@@ -702,18 +702,13 @@ public abstract class RandomAccessStore extends FileStore<SFChunk>
 
     @Override
     protected void doHousekeeping(MVStore mvStore) throws InterruptedException {
-        boolean idle = isIdle();
-        int rewritableChunksFillRate = getRewritableChunksFillRate();
-        if (idle && stopIdleHousekeeping) {
-            return;
-        }
         int autoCommitMemory = mvStore.getAutoCommitMemory();
-        int fileFillRate = getFillRate();
-        long chunksTotalSize = size() * fileFillRate / 100;
-        if (isFragmented() && fileFillRate < getAutoCompactFillRate()) {
+        int fillRate = getFillRate();
+        if (isFragmented() && fillRate < getAutoCompactFillRate()) {
+
             mvStore.tryExecuteUnderStoreLock(() -> {
                 int moveSize = 2 * autoCommitMemory;
-                if (idle) {
+                if (isIdle()) {
                     moveSize *= 4;
                 }
                 compactMoveChunks(101, moveSize, mvStore);
@@ -721,36 +716,28 @@ public abstract class RandomAccessStore extends FileStore<SFChunk>
             });
         }
 
-        int chunksFillRate = getChunksFillRate();
-        int adjustedUpFillRate = 50 + rewritableChunksFillRate / 2;
-        int fillRateToCompare = idle ? rewritableChunksFillRate : adjustedUpFillRate;
-        if (fillRateToCompare < getTargetFillRate(idle)) {
-            int targetFillRate = idle ? adjustedUpFillRate : rewritableChunksFillRate;
+        int chunksFillRate = getRewritableChunksFillRate();
+        int adjustedChunksFillRate = 100 - (100 - chunksFillRate) / 2;
+        int fillRateToCompare = isIdle() ? chunksFillRate : adjustedChunksFillRate;
+        if (fillRateToCompare < getTargetFillRate()) {
             mvStore.tryExecuteUnderStoreLock(() -> {
                 int writeLimit = autoCommitMemory;
-                if (!idle) {
+                if (!isIdle()) {
                     writeLimit /= 4;
                 }
-                if (rewriteChunks(writeLimit, targetFillRate)) {
+                if (rewriteChunks(writeLimit, isIdle() ? adjustedChunksFillRate : chunksFillRate)) {
                     dropUnusedChunks();
                 }
                 return true;
             });
         }
-        stopIdleHousekeeping = false;
-        if (idle) {
-            int currentChunksFillRate = getChunksFillRate();
-            long currentTotalChunksSize = size() * getFillRate() / 100;
-            stopIdleHousekeeping = currentTotalChunksSize > chunksTotalSize
-                    || currentTotalChunksSize == chunksTotalSize && currentChunksFillRate <= chunksFillRate;
-        }
     }
 
-    private int getTargetFillRate(boolean idle) {
+    private int getTargetFillRate() {
         int targetRate = getAutoCompactFillRate();
         // use a lower fill rate if there were any file operations since the last time
-        if (!idle) {
-            targetRate = targetRate * targetRate / 100;
+        if (!isIdle()) {
+            targetRate /= 2;
         }
         return targetRate;
     }

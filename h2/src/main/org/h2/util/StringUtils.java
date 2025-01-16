@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,7 +9,6 @@ import java.io.ByteArrayOutputStream;
 import java.lang.ref.SoftReference;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -1384,32 +1383,4 @@ public class StringUtils {
         return replaceAll(pattern, "\\", "\\\\");
     }
 
-    /**
-     * Case-sensitive check if a {@param text} starts with a {@param prefix}.
-     * It only calls {@code String.startsWith()} and is only here for API consistency
-     *
-     * @param text the full text starting with a prefix
-     * @param prefix the full text starting with a prefix
-     * @return TRUE only if text starts with the prefix
-     */
-    public static boolean startsWith(String text, String prefix) {
-        return text.startsWith(prefix);
-    }
-
-    /**
-     * Case-Insensitive check if a {@param text} starts with a {@param prefix}.
-     *
-     * @param text the full text starting with a prefix
-     * @param prefix the full text starting with a prefix
-     * @return TRUE only if text starts with the prefix
-     */
-    public static boolean startsWithIgnoringCase(String text, String prefix) {
-        if (text.length() < prefix.length()) {
-            return false;
-        } else {
-            Collator collator = Collator.getInstance();
-            collator.setStrength(Collator.PRIMARY);
-            return collator.equals(text.substring(0, prefix.length()), prefix);
-        }
-    }
 }

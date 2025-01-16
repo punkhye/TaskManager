@@ -1,15 +1,14 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.security;
 
-import static org.h2.util.Bits.LONG_VH_BE;
-
 import org.h2.engine.Constants;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
+import org.h2.util.Bits;
 import org.h2.util.MathUtils;
 
 /**
@@ -100,7 +99,7 @@ public class SecureFileStore extends FileStore {
         byte[] iv = bufferForInitVector;
         while (len > 0) {
             for (int i = 0; i < Constants.FILE_BLOCK_SIZE; i += 8) {
-                LONG_VH_BE.set(iv, i, (p + i) >>> 3);
+                Bits.writeLong(iv, i, (p + i) >>> 3);
             }
             cipherForInitVector.encrypt(iv, 0, Constants.FILE_BLOCK_SIZE);
             for (int i = 0; i < Constants.FILE_BLOCK_SIZE; i++) {

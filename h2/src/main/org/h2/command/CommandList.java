@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -20,7 +20,7 @@ import org.h2.result.ResultWithGeneratedKeys;
  */
 class CommandList extends Command {
 
-    private final CommandContainer command;
+    private CommandContainer command;
     private final ArrayList<Prepared> commands;
     private final ArrayList<Parameter> parameters;
     private String remaining;
@@ -42,20 +42,20 @@ class CommandList extends Command {
 
     private void executeRemaining() {
         for (Prepared prepared : commands) {
-            CommandContainer commandContainer = new CommandContainer(session, prepared.getSQL(), prepared);
+            prepared.prepare();
             if (prepared.isQuery()) {
-                commandContainer.executeQuery(0, false);
+                prepared.query(0);
             } else {
-                commandContainer.executeUpdate(null);
+                prepared.update();
             }
         }
         if (remaining != null) {
             remainingCommand = session.prepareLocal(remaining);
             remaining = null;
             if (remainingCommand.isQuery()) {
-                remainingCommand.executeQuery(0, false);
+                remainingCommand.query(0);
             } else {
-                remainingCommand.executeUpdate(null);
+                remainingCommand.update(null);
             }
         }
     }
@@ -75,10 +75,13 @@ class CommandList extends Command {
     }
 
     @Override
-    public void stop(boolean commitIfAutoCommit) {
-        command.stop(commitIfAutoCommit);
+    public void stop() {
+        command.stop();
+        for (Prepared prepared : commands) {
+            CommandContainer.clearCTE(session, prepared);
+        }
         if (remainingCommand != null) {
-            remainingCommand.stop(commitIfAutoCommit);
+            remainingCommand.stop();
         }
     }
 

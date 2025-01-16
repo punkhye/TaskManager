@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2023 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -281,17 +281,6 @@ public abstract class Expression implements HasSQL, Typed {
      */
     public Expression getNotIfPossible(@SuppressWarnings("unused") SessionLocal session) {
         // by default it is not possible
-        return null;
-    }
-
-    /**
-     * Returns data type of this expression if it is statically known.
-     *
-     * @param session
-     *            the session
-     * @return data type or {@code null}
-     */
-    public TypeInfo getTypeIfStaticallyKnown(SessionLocal session) {
         return null;
     }
 
