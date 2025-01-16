@@ -79,6 +79,7 @@ public class UpdateTaskFrame extends JFrame {
 
         // Create date picker
         datePicker = createDatePicker(currentDueDate);
+
         dueDatePanel.add(datePicker);
 
         return dueDatePanel;
@@ -184,11 +185,13 @@ public class UpdateTaskFrame extends JFrame {
             return dateFormatter.parseObject(text);
         }
 
-        @Override
         public String valueToString(Object value) {
             if (value != null) {
-                java.util.Date date = (java.util.Date) value;
-                return dateFormatter.format(date);
+                if (value instanceof java.util.Date) {
+                    return dateFormatter.format((java.util.Date) value);
+                } else if (value instanceof java.util.Calendar) {
+                    return dateFormatter.format(((java.util.Calendar) value).getTime());
+                }
             }
             return "";
         }
