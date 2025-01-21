@@ -18,6 +18,7 @@ CREATE TABLE USERS (
 
 
 
+DELETE FROM employees;
 
 jdbc:h2:D:\intellijProjects\Project\database
 test

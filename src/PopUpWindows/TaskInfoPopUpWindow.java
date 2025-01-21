@@ -13,7 +13,6 @@ public class TaskInfoPopUpWindow extends JFrame {
     JLabel descriptionLabel = new JLabel("Description: ");
     JLabel dueDateLabel = new JLabel("Deadline (yyyy-MM-dd): ");
     JLabel priorityLabel = new JLabel("Priority of this task: ");
-    JLabel daysLeftLabel = new JLabel("Days Left: ");
 
     JPanel idPanel = new JPanel();
     JPanel titlePanel = new JPanel();
@@ -33,7 +32,7 @@ public class TaskInfoPopUpWindow extends JFrame {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String formattedDueDate = taskDueDate.format(formatter);
 
-        // Calculate the number of days left until the task's due date
+        // calculating number of days left
         long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), taskDueDate);
 
         // Set up the panels and labels
@@ -57,7 +56,7 @@ public class TaskInfoPopUpWindow extends JFrame {
         dueDatePanel.add(dueDateLabel).setFont(new Font("Calibri", Font.BOLD, 20));
         dueDatePanel.add(new JLabel(formattedDueDate)).setFont(new Font("Arial", Font.PLAIN, 16));
 
-        // Add days left or overdue message
+        // add days left or the overdue message
         dueDatePanel.add(new JLabel("                 "));
         if (daysLeft > 0) {
             dueDatePanel.add(new JLabel("Days left: ")).setFont(new Font("Calibri", Font.BOLD, 20));
@@ -71,13 +70,13 @@ public class TaskInfoPopUpWindow extends JFrame {
         priorityPanel.add(priorityLabel).setFont(new Font("Calibri", Font.BOLD, 20));
         priorityPanel.add(new JLabel(taskPriority)).setFont(new Font("Arial", Font.PLAIN, 16));
 
-        // Set up the OK button
+        // ok button
         okButton.setPreferredSize(new Dimension(200, 50));
         buttonPanel.add(okButton);
 
         okButton.addActionListener(e -> this.dispose());
 
-        // Add the panels to the JFrame
+        // adding the panels
         this.add(idPanel);
         this.add(titlePanel);
         this.add(descriptionPanel);

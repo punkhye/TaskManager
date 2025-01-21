@@ -17,13 +17,13 @@ import java.time.format.DateTimeFormatter;
 
 public class MainFrame extends JFrame {
 
-    // LoggedUser and DBConnection initialization
+    // logged user info and dbconnection
     static LoggedUser loggedUser = new LoggedUser();
     static Connection conn = null;
     static PreparedStatement statement = null;
     static ResultSet result = null;
 
-    // Panels and components
+    // panels,labels,buttons and the table
     JPanel loginPlusButtonPanel = new JPanel();
     JPanel loginPanel = new JPanel();
     JPanel updateAndDeletePanel = new JPanel();
@@ -59,7 +59,7 @@ public class MainFrame extends JFrame {
         this.setSize(700, 800);
         this.setLocationRelativeTo(null);
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
-        this.setLayout(new GridLayout(3, 1));  // Променено, за да няма празно място
+        this.setLayout(new GridLayout(3, 1));
         this.add(loginPlusButtonPanel);
         this.add(tablePanel);
         this.add(buttonsOnTheBottomPanel);
@@ -85,17 +85,16 @@ public class MainFrame extends JFrame {
 
         JLabel taskInfoLabel = new JLabel("Double-click on a task to see it in full detail");
 
-        // Използваме BorderLayout вместо FlowLayout
+
         tablePanel.setLayout(new BorderLayout());
 
-        // Добавяме label в NORTH
         tablePanel.add(taskInfoLabel, BorderLayout.NORTH);
 
-        // Скролбарът се добавя към центъра на панела
+
         scroll.setPreferredSize(new Dimension(600, 400));
         tablePanel.add(scroll, BorderLayout.CENTER);
 
-        // Премахваме възможността за редактиране на таблицата
+        // premahvane na vuzmojnostta da se redaktira tablicata
         table.setDefaultEditor(Object.class, null);
     }
 
@@ -115,7 +114,7 @@ public class MainFrame extends JFrame {
 
         table.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
-                // Проверка дали събитието е двойно кликване с левия бутон
+                //proverka za dvoino klikvane vurhu tablicata
                 if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
                     int selectedRow = table.getSelectedRow();
                     if (selectedRow != -1) {
@@ -125,8 +124,7 @@ public class MainFrame extends JFrame {
                         String taskDueDateString = table.getValueAt(selectedRow, 3).toString();
                         String taskPriority = table.getValueAt(selectedRow, 4).toString();
 
-                        // Check and parse the due date
-                        String trimmedDueDate = taskDueDateString.trim();  // Trim whitespace
+                        String trimmedDueDate = taskDueDateString.trim();
                         LocalDate targetDate;
                         try {
                             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -137,7 +135,7 @@ public class MainFrame extends JFrame {
                             return;
                         }
 
-                        // If the date is valid, format and pass to the pop-up
+                        // checking if the date is valid
                         if (targetDate != null) {
                             new TaskInfoPopUpWindow(taskId, taskTitle, taskDescription, targetDate, taskPriority);
                         }
